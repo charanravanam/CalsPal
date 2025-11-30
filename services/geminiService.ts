@@ -1,7 +1,18 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { UserProfile, NutritionAnalysis, VerdictStatus } from "../types";
 
-const genAI = new GoogleGenAI({ apiKey: process.env.API_KEY });
+let genAI: GoogleGenAI | null = null;
+
+const getGenAI = () => {
+  if (!genAI) {
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) {
+      throw new Error("API_KEY is missing. Please add it to your environment variables.");
+    }
+    genAI = new GoogleGenAI({ apiKey });
+  }
+  return genAI;
+};
 
 // Helper to remove base64 prefix if present
 const cleanBase64 = (base64: string) => {
@@ -14,6 +25,7 @@ export const analyzeMealWithGemini = async (
   userProfile: UserProfile
 ): Promise<NutritionAnalysis> => {
   
+  const ai = getGenAI();
   const modelId = "gemini-2.5-flash"; // Efficient for this task
 
   const prompt = `
@@ -50,7 +62,7 @@ export const analyzeMealWithGemini = async (
   }
 
   try {
-    const response = await genAI.models.generateContent({
+    const response = await ai.models.generateContent({
       model: modelId,
       contents: {
         parts: parts,
@@ -112,7 +124,6 @@ export const analyzeMealWithGemini = async (
 
   } catch (error) {
     console.error("Gemini Analysis Error:", error);
-    // Fallback/Mock data in case of API failure (for graceful degradation) or rigorous error handling
     throw error;
   }
 };

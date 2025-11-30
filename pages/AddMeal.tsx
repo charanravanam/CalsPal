@@ -55,9 +55,13 @@ export const AddMeal: React.FC = () => {
       addMeal(newMeal);
       navigate(`/report/${newMeal.id}`);
       
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError("Failed to analyze meal. Please try again.");
+      if (err.message && err.message.includes("API_KEY")) {
+         setError("Configuration Error: API Key is missing.");
+      } else {
+         setError("Failed to analyze meal. Please try again.");
+      }
     } finally {
       setIsAnalyzing(false);
     }
@@ -156,7 +160,7 @@ export const AddMeal: React.FC = () => {
         </div>
 
         {error && (
-          <div className="p-4 bg-red-50 text-red-600 rounded-xl text-sm border border-red-100 flex items-center gap-2">
+          <div className="p-4 bg-red-50 text-red-600 rounded-xl text-sm border border-red-100 flex items-center gap-2 animate-fade-in">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
             {error}
           </div>
