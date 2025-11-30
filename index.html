@@ -37,14 +37,15 @@
 
     <!-- 
       CONFIGURATION:
-      To make the app work, replace "YOUR_API_KEY_HERE" below with your actual Gemini API Key.
+      The API Key is now set to a placeholder.
+      For production (Netlify), use Snippet Injection to inject window.process.env.API_KEY.
+      For local development, you can temporarily replace the placeholder below.
     -->
     <script>
       if (!window.process) {
         window.process = {
           env: {
-            // PASTE YOUR KEY INSIDE THE QUOTES BELOW
-            API_KEY: "AIzaSyAM1xQDXGhHwoMQ6jbpSXFf6hNicTpqd_I"
+            API_KEY: "YOUR_API_KEY_HERE"
           }
         };
       }
