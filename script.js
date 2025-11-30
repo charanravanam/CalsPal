@@ -18,37 +18,46 @@ const saveMeal = (meal) => {
 
 // --- ROUTER ---
 const views = {
-    onboarding: document.getElementById('view-onboarding'),
-    dashboard: document.getElementById('view-dashboard'),
-    addMeal: document.getElementById('view-add-meal'),
-    report: document.getElementById('view-report')
+    'onboarding': document.getElementById('view-onboarding'),
+    'dashboard': document.getElementById('view-dashboard'),
+    'add-meal': document.getElementById('view-add-meal'), // Fixed key to match HTML onclick
+    'report': document.getElementById('view-report')
 };
 
 const router = {
     navigate: (viewName, params = {}) => {
         // Hide all views
-        Object.values(views).forEach(el => el.classList.add('hidden'));
+        Object.values(views).forEach(el => {
+            if(el) el.classList.add('hidden');
+        });
         
         // Show target view
         if (views[viewName]) {
             views[viewName].classList.remove('hidden');
+        } else {
+            console.error(`View '${viewName}' not found.`);
+            return;
         }
 
         // Logic per view
         if (viewName === 'dashboard') renderDashboard();
         if (viewName === 'report' && params.id) renderReport(params.id);
-        if (viewName === 'addMeal') resetAddMealForm();
+        
+        // Use consistent key 'add-meal'
+        if (viewName === 'add-meal') {
+            if (window.resetAddMealForm) window.resetAddMealForm();
+        }
 
         // Nav bar visibility
         const nav = document.getElementById('nav-bar');
         const header = document.getElementById('header');
         
         if (viewName === 'dashboard') {
-            nav.classList.remove('hidden');
-            header.classList.remove('hidden');
+            if(nav) nav.classList.remove('hidden');
+            if(header) header.classList.remove('hidden');
         } else {
-            nav.classList.add('hidden');
-            header.classList.add('hidden');
+            if(nav) nav.classList.add('hidden');
+            if(header) header.classList.add('hidden');
         }
     }
 };
@@ -64,45 +73,62 @@ const obLogic = () => {
     };
 
     const updateStep = () => {
-        document.getElementById('ob-step-num').innerText = step;
+        const stepNum = document.getElementById('ob-step-num');
+        if(stepNum) stepNum.innerText = step;
+
         [1, 2, 3].forEach(i => {
             const el = document.getElementById(`ob-step-${i}`);
-            if (i === step) el.classList.remove('hidden');
-            else el.classList.add('hidden');
+            if(el) {
+                if (i === step) el.classList.remove('hidden');
+                else el.classList.add('hidden');
+            }
         });
         
-        if (step === 2) document.getElementById('ob-title').innerText = "What is your main goal?";
-        if (step === 3) document.getElementById('ob-title').innerText = "Let's check the numbers.";
+        const title = document.getElementById('ob-title');
+        if(title) {
+            if (step === 1) title.innerText = "Tell us about yourself.";
+            if (step === 2) title.innerText = "What is your main goal?";
+            if (step === 3) title.innerText = "Let's check the numbers.";
+        }
         
         // Button state
-        document.getElementById('btn-back').classList.toggle('hidden', step === 1);
-        document.getElementById('btn-next').innerText = step === 3 ? "Get Started" : "Continue";
+        const backBtn = document.getElementById('btn-back');
+        if(backBtn) backBtn.classList.toggle('hidden', step === 1);
+        
+        const nextBtn = document.getElementById('btn-next');
+        if(nextBtn) nextBtn.innerText = step === 3 ? "Get Started" : "Continue";
     };
 
-    document.getElementById('btn-next').onclick = () => {
-        if (step === 1) {
-            formData.name = document.getElementById('inp-name').value;
-            formData.height = Number(document.getElementById('inp-height').value);
-            formData.weight = Number(document.getElementById('inp-weight').value);
-            formData.age = Number(document.getElementById('inp-age').value);
-            formData.gender = document.getElementById('inp-gender').value;
-            if (!formData.name) return alert("Please enter your name");
-            step++;
-        } else if (step === 2) {
-            // Goal is selected via buttons
-            step++;
-            calculateTDEE();
-        } else if (step === 3) {
-            saveUser({ ...formData, dailyCalorieTarget: Number(document.getElementById('tdee-display').innerText) });
-            router.navigate('dashboard');
-        }
-        updateStep();
-    };
+    const nextBtn = document.getElementById('btn-next');
+    if(nextBtn) {
+        nextBtn.onclick = () => {
+            if (step === 1) {
+                formData.name = document.getElementById('inp-name').value;
+                formData.height = Number(document.getElementById('inp-height').value);
+                formData.weight = Number(document.getElementById('inp-weight').value);
+                formData.age = Number(document.getElementById('inp-age').value);
+                formData.gender = document.getElementById('inp-gender').value;
+                if (!formData.name) return alert("Please enter your name");
+                step++;
+            } else if (step === 2) {
+                // Goal is selected via buttons
+                step++;
+                calculateTDEE();
+            } else if (step === 3) {
+                saveUser({ ...formData, dailyCalorieTarget: Number(document.getElementById('tdee-display').innerText) });
+                router.navigate('dashboard');
+            }
+            updateStep();
+        };
+    }
 
-    document.getElementById('btn-back').onclick = () => {
-        if (step > 1) step--;
-        updateStep();
-    };
+    const backBtn = document.getElementById('btn-back');
+    if(backBtn) {
+        backBtn.onclick = () => {
+            if (step > 1) step--;
+            updateStep();
+        };
+    }
 
     // Goal Selection
     document.querySelectorAll('.goal-btn').forEach(btn => {
@@ -130,7 +156,8 @@ const obLogic = () => {
         if (formData.goal === 'Lose Weight') tdee -= 500;
         if (formData.goal === 'Build Muscle') tdee += 300;
         
-        document.getElementById('tdee-display').innerText = Math.round(tdee);
+        const tdeeDisplay = document.getElementById('tdee-display');
+        if(tdeeDisplay) tdeeDisplay.innerText = Math.round(tdee);
     };
 };
 
@@ -162,8 +189,9 @@ const renderDashboard = () => {
     bar.style.width = `${pct}%`;
     bar.className = `h-full transition-all duration-1000 ease-out ${consumed > target ? 'bg-red-500' : 'bg-zinc-900'}`;
 
-    document.getElementById('status-badge').innerText = consumed > target ? 'Over Limit' : 'On Track';
-    document.getElementById('status-badge').className = `text-xs font-bold px-2 py-1 rounded ${consumed > target ? 'bg-red-100 text-red-700' : 'bg-zinc-100 text-zinc-600'}`;
+    const badge = document.getElementById('status-badge');
+    badge.innerText = consumed > target ? 'Over Limit' : 'On Track';
+    badge.className = `text-xs font-bold px-2 py-1 rounded ${consumed > target ? 'bg-red-100 text-red-700' : 'bg-zinc-100 text-zinc-600'}`;
 
     // Recent Meals List
     const list = document.getElementById('meals-list');
@@ -224,20 +252,25 @@ const addMealLogic = () => {
 
     // File Input
     const fileInp = document.getElementById('file-input');
-    document.getElementById('drop-zone').onclick = () => fileInp.click();
-    fileInp.onchange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                imageBase64 = reader.result;
-                document.getElementById('image-preview').src = imageBase64;
-                document.getElementById('image-preview').classList.remove('hidden');
-                document.getElementById('drop-zone-content').classList.add('hidden');
-            };
-            reader.readAsDataURL(file);
-        }
-    };
+    const dropZone = document.getElementById('drop-zone');
+    
+    if(dropZone) dropZone.onclick = () => fileInp.click();
+    
+    if(fileInp) {
+        fileInp.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    imageBase64 = reader.result;
+                    document.getElementById('image-preview').src = imageBase64;
+                    document.getElementById('image-preview').classList.remove('hidden');
+                    document.getElementById('drop-zone-content').classList.add('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+    }
 
     // Meal Type
     document.querySelectorAll('.type-btn').forEach(btn => {
@@ -250,55 +283,65 @@ const addMealLogic = () => {
         };
     });
 
-    document.getElementById('btn-cancel-add').onclick = () => router.navigate('dashboard');
+    const cancelBtn = document.getElementById('btn-cancel-add');
+    if(cancelBtn) cancelBtn.onclick = () => router.navigate('dashboard');
 
-    document.getElementById('btn-analyze').onclick = async () => {
-        const textVal = document.getElementById('text-input').value;
-        const btn = document.getElementById('btn-analyze');
-        const errEl = document.getElementById('error-message');
-        
-        if (mode === 'camera' && !imageBase64) return;
-        if (mode === 'text' && !textVal) return;
+    const analyzeBtn = document.getElementById('btn-analyze');
+    if(analyzeBtn) {
+        analyzeBtn.onclick = async () => {
+            const textVal = document.getElementById('text-input').value;
+            const errEl = document.getElementById('error-message');
+            
+            if (mode === 'camera' && !imageBase64) return;
+            if (mode === 'text' && !textVal) return;
 
-        btn.disabled = true;
-        btn.innerHTML = `<svg class="animate-spin h-5 w-5 mr-2 inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Analyzing...`;
-        errEl.classList.add('hidden');
+            analyzeBtn.disabled = true;
+            analyzeBtn.innerHTML = `<svg class="animate-spin h-5 w-5 mr-2 inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Analyzing...`;
+            errEl.classList.add('hidden');
 
-        try {
-            const analysis = await analyzeMealWithGemini(
-                mode === 'camera' ? imageBase64 : undefined,
-                mode === 'text' ? textVal : undefined,
-                state.user
-            );
+            try {
+                const analysis = await analyzeMealWithGemini(
+                    mode === 'camera' ? imageBase64 : undefined,
+                    mode === 'text' ? textVal : undefined,
+                    state.user
+                );
 
-            const newMeal = {
-                id: crypto.randomUUID(),
-                timestamp: Date.now(),
-                type: selectedType,
-                imageUri: imageBase64,
-                textInput: textVal,
-                analysis
-            };
+                const newMeal = {
+                    id: crypto.randomUUID(),
+                    timestamp: Date.now(),
+                    type: selectedType,
+                    imageUri: imageBase64,
+                    textInput: textVal,
+                    analysis
+                };
 
-            saveMeal(newMeal);
-            router.navigate('report', { id: newMeal.id });
+                saveMeal(newMeal);
+                router.navigate('report', { id: newMeal.id });
 
-        } catch (error) {
-            errEl.innerText = error.message.includes("API_KEY") ? error.message : "Failed to analyze meal. Please try again.";
-            errEl.classList.remove('hidden');
-        } finally {
-            btn.disabled = false;
-            btn.innerText = "Analyze Meal";
-        }
-    };
+            } catch (error) {
+                errEl.innerText = error.message.includes("API_KEY") ? error.message : "Failed to analyze meal. Please try again.";
+                errEl.classList.remove('hidden');
+            } finally {
+                analyzeBtn.disabled = false;
+                analyzeBtn.innerText = "Analyze Meal";
+            }
+        };
+    }
 
     window.resetAddMealForm = () => {
         setMode('camera');
         imageBase64 = null;
-        document.getElementById('image-preview').classList.add('hidden');
-        document.getElementById('drop-zone-content').classList.remove('hidden');
-        document.getElementById('text-input').value = '';
-        document.getElementById('error-message').classList.add('hidden');
+        const imgPrev = document.getElementById('image-preview');
+        if(imgPrev) imgPrev.classList.add('hidden');
+        
+        const dropContent = document.getElementById('drop-zone-content');
+        if(dropContent) dropContent.classList.remove('hidden');
+        
+        const textInp = document.getElementById('text-input');
+        if(textInp) textInp.value = '';
+        
+        const errMsg = document.getElementById('error-message');
+        if(errMsg) errMsg.classList.add('hidden');
     };
 };
 
