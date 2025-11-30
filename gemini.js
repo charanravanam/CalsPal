@@ -3,8 +3,10 @@ import { GoogleGenAI } from "@google/genai";
 const getGenAI = () => {
     // Safety check for API Key
     const apiKey = window.process?.env?.API_KEY;
-    if (!apiKey || apiKey === "YOUR_ACTUAL_API_KEY_OR_NETLIFY_PLACEHOLDER") {
-        throw new Error("Configuration Error: API_KEY is missing. Please set it in your environment variables or inject it.");
+    
+    // Check if key is missing or is still the default placeholder
+    if (!apiKey || apiKey === "YOUR_API_KEY_HERE" || apiKey.includes("PLACEHOLDER")) {
+        throw new Error("Configuration Error: API_KEY is missing. Please open index.html and replace 'YOUR_API_KEY_HERE' with your actual Gemini API Key.");
     }
     return new GoogleGenAI({ apiKey });
 };

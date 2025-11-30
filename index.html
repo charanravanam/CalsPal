@@ -36,13 +36,17 @@
 </script>
 
     <!-- 
-      DEPLOYMENT NOTE: 
-      If deploying to Netlify/Static Hosting, inject your API key here via a build snippet or environment variable injection tool.
-      Example: window.process = { env: { API_KEY: "your_key" } };
+      CONFIGURATION:
+      To make the app work, replace "YOUR_API_KEY_HERE" below with your actual Gemini API Key.
     -->
     <script>
       if (!window.process) {
-        window.process = { env: {} };
+        window.process = {
+          env: {
+            // PASTE YOUR KEY INSIDE THE QUOTES BELOW
+            API_KEY: "AIzaSyAM1xQDXGhHwoMQ6jbpSXFf6hNicTpqd_I"
+          }
+        };
       }
     </script>
 </head>
