@@ -35,3 +35,10 @@ input[type=number]::-webkit-outer-spin-button {
 .selected-goal span {
     color: white !important;
 }
+
+/* Input read-only state */
+input:read-only {
+    background-color: #f4f4f5; 
+    color: #71717a;
+    cursor: not-allowed;
+}

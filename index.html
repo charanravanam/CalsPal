@@ -27,9 +27,9 @@
 {
   "imports": {
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "react": "https://aistudiocdn.com/react@^19.2.0",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.6"
   }
 }
@@ -67,7 +67,11 @@
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                     </button>
                     <!-- Dropdown -->
-                    <div id="profile-dropdown" class="hidden absolute right-0 top-12 w-48 bg-white rounded-xl shadow-xl border border-zinc-100 overflow-hidden py-1">
+                    <div id="profile-dropdown" class="hidden absolute right-0 top-12 w-48 bg-white rounded-xl shadow-xl border border-zinc-100 overflow-hidden py-1 z-50">
+                        <button id="btn-edit-profile" class="w-full text-left px-4 py-3 text-sm hover:bg-zinc-50 flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            Edit Profile
+                        </button>
                         <button id="btn-contact-admin" class="w-full text-left px-4 py-3 text-sm hover:bg-zinc-50 flex items-center gap-2">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
                             Contact Admin
@@ -109,8 +113,8 @@
                         </div>
                     </div>
                     <div class="space-y-2">
-                        <label class="text-sm font-medium text-zinc-700">Age</label>
-                        <input type="number" id="inp-age" value="30" class="w-full p-4 bg-white border border-zinc-200 rounded-xl">
+                        <label class="text-sm font-medium text-zinc-700">Date of Birth</label>
+                        <input type="date" id="inp-dob" class="w-full p-4 bg-white border border-zinc-200 rounded-xl text-zinc-900">
                     </div>
                     <div class="space-y-2">
                         <label class="text-sm font-medium text-zinc-700">Gender</label>
@@ -214,6 +218,55 @@
                         <p class="text-zinc-400">No meals logged yet today.</p>
                     </div>
                 </div>
+            </div>
+        </section>
+
+        <!-- VIEW: EDIT PROFILE -->
+        <section id="view-profile" class="view p-6 hidden flex flex-col h-screen absolute inset-0 bg-zinc-50 z-40 overflow-y-auto">
+             <div class="flex items-center justify-between mb-8">
+                <h1 class="text-2xl font-bold">Edit Profile</h1>
+                <button onclick="router.navigate('dashboard')" class="text-sm text-zinc-500">Cancel</button>
+            </div>
+
+            <div class="space-y-6 flex-1">
+                <div class="space-y-2 opacity-60">
+                    <label class="text-sm font-medium text-zinc-700">First Name <span class="text-xs text-zinc-400 ml-1">(Cannot Change)</span></label>
+                    <input type="text" id="edit-name" class="w-full p-4 bg-zinc-100 border border-zinc-200 rounded-xl text-zinc-500 cursor-not-allowed" readonly>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-zinc-700">Height (cm)</label>
+                        <input type="number" id="edit-height" class="w-full p-4 bg-white border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-zinc-700">Weight (kg)</label>
+                        <input type="number" id="edit-weight" class="w-full p-4 bg-white border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900">
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="text-sm font-medium text-zinc-700">Date of Birth</label>
+                    <input type="date" id="edit-dob" class="w-full p-4 bg-white border border-zinc-200 rounded-xl text-zinc-900">
+                </div>
+                
+                 <div class="space-y-2">
+                    <label class="text-sm font-medium text-zinc-700">Gender</label>
+                    <select id="edit-gender" class="w-full p-4 bg-white border border-zinc-200 rounded-xl">
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                    </select>
+                </div>
+                
+                <div class="bg-blue-50 border border-blue-100 p-4 rounded-xl">
+                    <p class="text-sm text-blue-700">Note: Updating your weight, height, or age will automatically recalculate your daily calorie target.</p>
+                </div>
+            </div>
+
+            <div class="pb-6">
+                <button id="btn-save-profile" class="w-full bg-zinc-900 text-white py-3.5 rounded-xl font-medium shadow-lg shadow-zinc-200">
+                    Save Changes
+                </button>
             </div>
         </section>
 

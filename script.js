@@ -38,12 +38,43 @@ const logout = () => {
     }
 };
 
+// Helper: Calculate Age from DOB string (YYYY-MM-DD)
+const calculateAge = (dobString) => {
+    if (!dobString) return 30; // Default
+    const dob = new Date(dobString);
+    const diff_ms = Date.now() - dob.getTime();
+    const age_dt = new Date(diff_ms);
+    return Math.abs(age_dt.getUTCFullYear() - 1970);
+};
+
+// Helper: Calculate TDEE based on profile object
+const calculateTDEEValue = (profile) => {
+    const age = calculateAge(profile.dob);
+    let bmr = 0;
+    
+    if (profile.gender === 'Male') {
+        bmr = 88.362 + (13.397 * profile.weight) + (4.799 * profile.height) - (5.677 * age);
+    } else {
+        bmr = 447.593 + (9.247 * profile.weight) + (3.098 * profile.height) - (4.330 * age);
+    }
+    
+    let tdee = bmr * 1.55; // Moderate Activity Assumed
+    
+    // Goal logic
+    if (profile.goal === 'Lose Weight') tdee -= 500;
+    if (profile.goal === 'Gain Weight') tdee += 300; 
+    if (profile.goal === 'Build Muscle') tdee += 500; 
+    
+    return Math.round(tdee);
+};
+
 // --- ROUTER ---
 const views = {
     'onboarding': document.getElementById('view-onboarding'),
     'dashboard': document.getElementById('view-dashboard'),
     'add-meal': document.getElementById('view-add-meal'),
-    'report': document.getElementById('view-report')
+    'report': document.getElementById('view-report'),
+    'profile': document.getElementById('view-profile')
 };
 
 const router = {
@@ -64,6 +95,7 @@ const router = {
         // Logic per view
         if (viewName === 'dashboard') renderDashboard();
         if (viewName === 'report' && params.id) renderReport(params.id);
+        if (viewName === 'profile') renderProfile();
         
         if (viewName === 'add-meal') {
             if (window.resetAddMealForm) window.resetAddMealForm();
@@ -73,6 +105,7 @@ const router = {
         const nav = document.getElementById('nav-bar');
         const header = document.getElementById('header');
         
+        // Show Nav/Header only on Dashboard
         if (viewName === 'dashboard') {
             if(nav) nav.classList.remove('hidden');
             if(header) header.classList.remove('hidden');
@@ -89,7 +122,7 @@ window.router = router;
 const obLogic = () => {
     let step = 1;
     const formData = {
-        name: '', height: 170, weight: 70, age: 30, gender: 'Male', 
+        name: '', height: 170, weight: 70, dob: '', gender: 'Male', 
         goal: 'Gain Weight', 
         healthIssues: [] 
     };
@@ -200,9 +233,12 @@ const obLogic = () => {
                 formData.name = document.getElementById('inp-name').value;
                 formData.height = Number(document.getElementById('inp-height').value);
                 formData.weight = Number(document.getElementById('inp-weight').value);
-                formData.age = Number(document.getElementById('inp-age').value);
+                formData.dob = document.getElementById('inp-dob').value; 
                 formData.gender = document.getElementById('inp-gender').value;
+                
                 if (!formData.name) return alert("Please enter your name");
+                if (!formData.dob) return alert("Please enter your date of birth");
+                
                 step++;
             } else if (step === 2) {
                 // Health step
@@ -210,9 +246,14 @@ const obLogic = () => {
             } else if (step === 3) {
                 // Goal step
                 step++;
-                calculateTDEE();
+                // Calc TDEE
+                const tdee = calculateTDEEValue(formData);
+                const tdeeDisplay = document.getElementById('tdee-display');
+                if(tdeeDisplay) tdeeDisplay.innerText = tdee;
+
             } else if (step === 4) {
-                saveUser({ ...formData, dailyCalorieTarget: Number(document.getElementById('tdee-display').innerText) });
+                const finalTdee = Number(document.getElementById('tdee-display').innerText);
+                saveUser({ ...formData, dailyCalorieTarget: finalTdee });
                 router.navigate('dashboard');
             }
             updateStep();
@@ -251,25 +292,49 @@ const obLogic = () => {
             formData.goal = btn.dataset.goal;
         };
     });
+};
 
-    const calculateTDEE = () => {
-        let bmr = 0;
-        if (formData.gender === 'Male') {
-            bmr = 88.362 + (13.397 * formData.weight) + (4.799 * formData.height) - (5.677 * formData.age);
-        } else {
-            bmr = 447.593 + (9.247 * formData.weight) + (3.098 * formData.height) - (4.330 * formData.age);
-        }
-        
-        let tdee = bmr * 1.55; // Moderate
-        
-        // Goal logic
-        if (formData.goal === 'Lose Weight') tdee -= 500;
-        if (formData.goal === 'Gain Weight') tdee += 300; // Surplus for gaining
-        if (formData.goal === 'Build Muscle') tdee += 500; // Higher surplus
-        
-        const tdeeDisplay = document.getElementById('tdee-display');
-        if(tdeeDisplay) tdeeDisplay.innerText = Math.round(tdee);
-    };
+// --- PROFILE EDIT LOGIC ---
+const renderProfile = () => {
+    const user = state.user;
+    if(!user) return router.navigate('onboarding');
+
+    // Populate Fields
+    document.getElementById('edit-name').value = user.name || '';
+    document.getElementById('edit-height').value = user.height || 170;
+    document.getElementById('edit-weight').value = user.weight || 70;
+    document.getElementById('edit-dob').value = user.dob || ''; // Expecting YYYY-MM-DD
+    document.getElementById('edit-gender').value = user.gender || 'Male';
+
+    const saveBtn = document.getElementById('btn-save-profile');
+    if(saveBtn) {
+        saveBtn.onclick = () => {
+            const newHeight = Number(document.getElementById('edit-height').value);
+            const newWeight = Number(document.getElementById('edit-weight').value);
+            const newDob = document.getElementById('edit-dob').value;
+            const newGender = document.getElementById('edit-gender').value;
+
+            if(!newHeight || !newWeight || !newDob) {
+                alert("Please fill in all fields");
+                return;
+            }
+
+            // Create updated user object
+            const updatedUser = {
+                ...user,
+                height: newHeight,
+                weight: newWeight,
+                dob: newDob,
+                gender: newGender
+            };
+
+            // Recalculate Target
+            updatedUser.dailyCalorieTarget = calculateTDEEValue(updatedUser);
+
+            saveUser(updatedUser);
+            router.navigate('dashboard');
+        };
+    }
 };
 
 // --- DASHBOARD LOGIC ---
@@ -296,6 +361,9 @@ const renderDashboard = () => {
     // Menu Actions
     const logoutBtn = document.getElementById('btn-logout');
     if(logoutBtn) logoutBtn.onclick = logout;
+
+    const editProfileBtn = document.getElementById('btn-edit-profile');
+    if(editProfileBtn) editProfileBtn.onclick = () => router.navigate('profile');
 
     const contactBtn = document.getElementById('btn-contact-admin');
     if(contactBtn) contactBtn.onclick = () => {
