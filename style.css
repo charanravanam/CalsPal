@@ -24,3 +24,14 @@ input[type=number]::-webkit-outer-spin-button {
     -webkit-appearance: none; 
     margin: 0; 
 }
+
+/* Custom styles for goal selection */
+.selected-goal {
+    border-color: #18181b !important;
+    background-color: #18181b !important;
+    color: white !important;
+}
+
+.selected-goal span {
+    color: white !important;
+}

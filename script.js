@@ -16,11 +16,33 @@ const saveMeal = (meal) => {
     localStorage.setItem('ni_meals', JSON.stringify(state.meals));
 };
 
+const deleteMeal = (id) => {
+    state.meals = state.meals.filter(m => m.id !== id);
+    localStorage.setItem('ni_meals', JSON.stringify(state.meals));
+    // If currently viewing report, go back to dashboard
+    const reportView = document.getElementById('view-report');
+    if (!reportView.classList.contains('hidden')) {
+        router.navigate('dashboard');
+    } else {
+        renderDashboard(); // Re-render if on dashboard
+    }
+};
+
+const logout = () => {
+    if(confirm("Are you sure you want to log out? All local data will be cleared.")) {
+        localStorage.removeItem('ni_user');
+        localStorage.removeItem('ni_meals');
+        state.user = null;
+        state.meals = [];
+        location.reload();
+    }
+};
+
 // --- ROUTER ---
 const views = {
     'onboarding': document.getElementById('view-onboarding'),
     'dashboard': document.getElementById('view-dashboard'),
-    'add-meal': document.getElementById('view-add-meal'), // Fixed key to match HTML onclick
+    'add-meal': document.getElementById('view-add-meal'),
     'report': document.getElementById('view-report')
 };
 
@@ -43,12 +65,11 @@ const router = {
         if (viewName === 'dashboard') renderDashboard();
         if (viewName === 'report' && params.id) renderReport(params.id);
         
-        // Use consistent key 'add-meal'
         if (viewName === 'add-meal') {
             if (window.resetAddMealForm) window.resetAddMealForm();
         }
 
-        // Nav bar visibility
+        // Nav bar & Header visibility
         const nav = document.getElementById('nav-bar');
         const header = document.getElementById('header');
         
@@ -62,21 +83,93 @@ const router = {
     }
 };
 
-// Make router global for inline onclick handlers
 window.router = router;
 
 // --- ONBOARDING LOGIC ---
 const obLogic = () => {
     let step = 1;
     const formData = {
-        name: '', height: 170, weight: 70, age: 30, gender: 'Male', goal: 'Maintain Weight'
+        name: '', height: 170, weight: 70, age: 30, gender: 'Male', 
+        goal: 'Gain Weight', 
+        healthIssues: [] 
     };
+
+    // Health Issue Suggestions
+    const commonIssues = [
+        "Diabetes", "High Sugar", "Hypertension", "High Blood Pressure", 
+        "PCOS", "Thyroid", "Joint Pain", "Arthritis", "Acid Reflux", 
+        "High Cholesterol", "Gluten Intolerance", "Lactose Intolerance", 
+        "Kidney Issues"
+    ];
+
+    const updateHealthTags = () => {
+        const container = document.getElementById('selected-health-tags');
+        if(!container) return;
+        container.innerHTML = '';
+        formData.healthIssues.forEach(issue => {
+            const tag = document.createElement('span');
+            tag.className = "bg-zinc-900 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2";
+            tag.innerHTML = `${issue} <button class="text-white/70 hover:text-white font-bold">&times;</button>`;
+            tag.querySelector('button').onclick = () => {
+                formData.healthIssues = formData.healthIssues.filter(i => i !== issue);
+                updateHealthTags();
+            };
+            container.appendChild(tag);
+        });
+    };
+
+    // Input Logic for Health
+    const healthInp = document.getElementById('inp-health');
+    const suggestBox = document.getElementById('health-suggestions');
+    
+    if(healthInp && suggestBox) {
+        healthInp.oninput = (e) => {
+            const val = e.target.value.toLowerCase();
+            suggestBox.innerHTML = '';
+            if(!val) {
+                suggestBox.classList.add('hidden');
+                return;
+            }
+            const matches = commonIssues.filter(i => i.toLowerCase().includes(val) && !formData.healthIssues.includes(i));
+            
+            if(matches.length > 0) {
+                suggestBox.classList.remove('hidden');
+                matches.forEach(match => {
+                    const div = document.createElement('div');
+                    div.className = "p-3 hover:bg-zinc-50 cursor-pointer border-b border-zinc-50 last:border-0 text-sm";
+                    div.innerText = match;
+                    div.onclick = () => {
+                        formData.healthIssues.push(match);
+                        updateHealthTags();
+                        healthInp.value = '';
+                        suggestBox.classList.add('hidden');
+                    };
+                    suggestBox.appendChild(div);
+                });
+            } else {
+                suggestBox.classList.add('hidden');
+            }
+        };
+        // Allow adding custom issues on Enter
+        healthInp.onkeydown = (e) => {
+            if(e.key === 'Enter' && healthInp.value) {
+                const val = healthInp.value.trim();
+                if(val && !formData.healthIssues.includes(val)) {
+                    formData.healthIssues.push(val);
+                    updateHealthTags();
+                    healthInp.value = '';
+                    suggestBox.classList.add('hidden');
+                }
+            }
+        };
+    }
+
 
     const updateStep = () => {
         const stepNum = document.getElementById('ob-step-num');
         if(stepNum) stepNum.innerText = step;
 
-        [1, 2, 3].forEach(i => {
+        [1, 2, 3, 4].forEach(i => {
             const el = document.getElementById(`ob-step-${i}`);
             if(el) {
                 if (i === step) el.classList.remove('hidden');
@@ -87,8 +180,9 @@ const obLogic = () => {
         const title = document.getElementById('ob-title');
         if(title) {
             if (step === 1) title.innerText = "Tell us about yourself.";
-            if (step === 2) title.innerText = "What is your main goal?";
-            if (step === 3) title.innerText = "Let's check the numbers.";
+            if (step === 2) title.innerText = "Health Implications.";
+            if (step === 3) title.innerText = "What is your main goal?";
+            if (step === 4) title.innerText = "Let's check the numbers.";
         }
         
         // Button state
@@ -96,7 +190,7 @@ const obLogic = () => {
         if(backBtn) backBtn.classList.toggle('hidden', step === 1);
         
         const nextBtn = document.getElementById('btn-next');
-        if(nextBtn) nextBtn.innerText = step === 3 ? "Get Started" : "Continue";
+        if(nextBtn) nextBtn.innerText = step === 4 ? "Get Started" : "Continue";
     };
 
     const nextBtn = document.getElementById('btn-next');
@@ -111,10 +205,13 @@ const obLogic = () => {
                 if (!formData.name) return alert("Please enter your name");
                 step++;
             } else if (step === 2) {
-                // Goal is selected via buttons
+                // Health step
+                step++;
+            } else if (step === 3) {
+                // Goal step
                 step++;
                 calculateTDEE();
-            } else if (step === 3) {
+            } else if (step === 4) {
                 saveUser({ ...formData, dailyCalorieTarget: Number(document.getElementById('tdee-display').innerText) });
                 router.navigate('dashboard');
             }
@@ -130,15 +227,27 @@ const obLogic = () => {
         };
     }
 
-    // Goal Selection
+    // Goal Selection Styling
     document.querySelectorAll('.goal-btn').forEach(btn => {
         btn.onclick = () => {
             document.querySelectorAll('.goal-btn').forEach(b => {
-                b.classList.remove('border-zinc-900', 'bg-zinc-50');
-                b.classList.add('border-zinc-100', 'bg-white');
+                b.classList.remove('selected-goal'); // Remove active class
+                b.classList.add('border-zinc-100', 'bg-white', 'text-zinc-900'); // Reset to default
+                b.classList.remove('border-zinc-900', 'bg-zinc-900', 'text-white'); // Remove active styling
+                // Reset subtitle opacity
+                const span = b.querySelector('span:last-child');
+                if(span) { span.classList.add('opacity-70'); span.classList.remove('text-zinc-400'); }
             });
-            btn.classList.add('border-zinc-900', 'bg-zinc-50');
-            btn.classList.remove('border-zinc-100', 'bg-white');
+
+            // Add active class and styling
+            btn.classList.add('selected-goal');
+            btn.classList.remove('border-zinc-100', 'bg-white', 'text-zinc-900');
+            btn.classList.add('border-zinc-900', 'bg-zinc-900', 'text-white');
+            
+            // Adjust subtitle color for contrast
+            const span = btn.querySelector('span:last-child');
+            if(span) { span.classList.remove('opacity-70'); span.classList.add('text-zinc-400'); }
+
             formData.goal = btn.dataset.goal;
         };
     });
@@ -151,10 +260,12 @@ const obLogic = () => {
             bmr = 447.593 + (9.247 * formData.weight) + (3.098 * formData.height) - (4.330 * formData.age);
         }
         
-        // Assume Moderate Activity (1.55) + Goal Adjustment
-        let tdee = bmr * 1.55;
+        let tdee = bmr * 1.55; // Moderate
+        
+        // Goal logic
         if (formData.goal === 'Lose Weight') tdee -= 500;
-        if (formData.goal === 'Build Muscle') tdee += 300;
+        if (formData.goal === 'Gain Weight') tdee += 300; // Surplus for gaining
+        if (formData.goal === 'Build Muscle') tdee += 500; // Higher surplus
         
         const tdeeDisplay = document.getElementById('tdee-display');
         if(tdeeDisplay) tdeeDisplay.innerText = Math.round(tdee);
@@ -165,6 +276,31 @@ const obLogic = () => {
 const renderDashboard = () => {
     const user = state.user;
     if (!user) return router.navigate('onboarding');
+
+    // Setup Menu Actions
+    const menuBtn = document.getElementById('btn-profile-menu');
+    const menuDropdown = document.getElementById('profile-dropdown');
+    
+    // Toggle Menu
+    if(menuBtn) {
+        menuBtn.onclick = (e) => {
+            e.stopPropagation();
+            menuDropdown.classList.toggle('hidden');
+        };
+    }
+    // Close menu when clicking outside
+    document.addEventListener('click', () => {
+        if(menuDropdown && !menuDropdown.classList.contains('hidden')) menuDropdown.classList.add('hidden');
+    });
+
+    // Menu Actions
+    const logoutBtn = document.getElementById('btn-logout');
+    if(logoutBtn) logoutBtn.onclick = logout;
+
+    const contactBtn = document.getElementById('btn-contact-admin');
+    if(contactBtn) contactBtn.onclick = () => {
+        document.getElementById('modal-admin').classList.remove('hidden');
+    };
 
     // Header
     const dateOpts = { weekday: 'long', day: 'numeric', month: 'long' };
@@ -200,10 +336,17 @@ const renderDashboard = () => {
     if (todayMeals.length === 0) {
         list.innerHTML = `<div class="text-center py-10 bg-white rounded-2xl border border-dashed border-zinc-200"><p class="text-zinc-400">No meals logged yet today.</p></div>`;
     } else {
-        todayMeals.slice(0, 5).forEach(meal => {
+        // Sort by newest first
+        todayMeals.sort((a, b) => b.timestamp - a.timestamp).forEach(meal => {
             const item = document.createElement('div');
-            item.className = "bg-white p-4 rounded-xl border border-zinc-100 shadow-sm flex items-center gap-4 active:scale-[0.99] transition-transform cursor-pointer";
-            item.onclick = () => router.navigate('report', { id: meal.id });
+            item.className = "bg-white p-4 rounded-xl border border-zinc-100 shadow-sm flex items-center gap-4 active:scale-[0.99] transition-transform cursor-pointer relative group";
+            
+            // Navigate on click (but prevent if clicking delete)
+            item.onclick = (e) => {
+                if(!e.target.closest('.delete-btn')) {
+                    router.navigate('report', { id: meal.id });
+                }
+            };
             
             const imgHtml = meal.imageUri 
                 ? `<img src="${meal.imageUri}" class="w-full h-full object-cover">`
@@ -226,7 +369,20 @@ const renderDashboard = () => {
                      <span class="font-bold text-zinc-900">${meal.analysis.calories}</span>
                      <span class="text-[10px] font-bold px-1.5 py-0.5 rounded border ${vClass}">${v.split(" ")[0]}</span>
                 </div>
+                <button class="delete-btn absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 transition-opacity" title="Delete Meal">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
             `;
+            
+            // Delete Action
+            const delBtn = item.querySelector('.delete-btn');
+            delBtn.onclick = (e) => {
+                e.stopPropagation();
+                if(confirm("Delete this meal?")) {
+                    deleteMeal(meal.id);
+                }
+            };
+
             list.appendChild(item);
         });
     }
@@ -253,6 +409,7 @@ const addMealLogic = () => {
     // File Input
     const fileInp = document.getElementById('file-input');
     const dropZone = document.getElementById('drop-zone');
+    const clearBtn = document.getElementById('btn-clear-image');
     
     if(dropZone) dropZone.onclick = () => fileInp.click();
     
@@ -266,9 +423,22 @@ const addMealLogic = () => {
                     document.getElementById('image-preview').src = imageBase64;
                     document.getElementById('image-preview').classList.remove('hidden');
                     document.getElementById('drop-zone-content').classList.add('hidden');
+                    clearBtn.classList.remove('hidden');
                 };
                 reader.readAsDataURL(file);
             }
+        };
+    }
+
+    if(clearBtn) {
+        clearBtn.onclick = (e) => {
+            e.stopPropagation();
+            imageBase64 = null;
+            document.getElementById('image-preview').src = '';
+            document.getElementById('image-preview').classList.add('hidden');
+            document.getElementById('drop-zone-content').classList.remove('hidden');
+            clearBtn.classList.add('hidden');
+            fileInp.value = '';
         };
     }
 
@@ -289,7 +459,10 @@ const addMealLogic = () => {
     const analyzeBtn = document.getElementById('btn-analyze');
     if(analyzeBtn) {
         analyzeBtn.onclick = async () => {
-            const textVal = document.getElementById('text-input').value;
+            // Collect Inputs
+            const textVal = mode === 'text' ? document.getElementById('text-input').value : document.getElementById('input-description').value;
+            const quantityVal = document.getElementById('input-quantity').value;
+            
             const errEl = document.getElementById('error-message');
             
             if (mode === 'camera' && !imageBase64) return;
@@ -300,9 +473,11 @@ const addMealLogic = () => {
             errEl.classList.add('hidden');
 
             try {
+                // Pass new fields to Gemini
                 const analysis = await analyzeMealWithGemini(
                     mode === 'camera' ? imageBase64 : undefined,
-                    mode === 'text' ? textVal : undefined,
+                    textVal, // Description
+                    quantityVal, // Quantity
                     state.user
                 );
 
@@ -319,6 +494,7 @@ const addMealLogic = () => {
                 router.navigate('report', { id: newMeal.id });
 
             } catch (error) {
+                console.error(error);
                 errEl.innerText = error.message.includes("API_KEY") ? error.message : "Failed to analyze meal. Please try again.";
                 errEl.classList.remove('hidden');
             } finally {
@@ -331,14 +507,14 @@ const addMealLogic = () => {
     window.resetAddMealForm = () => {
         setMode('camera');
         imageBase64 = null;
-        const imgPrev = document.getElementById('image-preview');
-        if(imgPrev) imgPrev.classList.add('hidden');
+        document.getElementById('image-preview').classList.add('hidden');
+        document.getElementById('drop-zone-content').classList.remove('hidden');
+        document.getElementById('btn-clear-image').classList.add('hidden');
         
-        const dropContent = document.getElementById('drop-zone-content');
-        if(dropContent) dropContent.classList.remove('hidden');
-        
-        const textInp = document.getElementById('text-input');
-        if(textInp) textInp.value = '';
+        // Reset fields
+        document.getElementById('text-input').value = '';
+        document.getElementById('input-description').value = '';
+        document.getElementById('input-quantity').value = '';
         
         const errMsg = document.getElementById('error-message');
         if(errMsg) errMsg.classList.add('hidden');
@@ -437,6 +613,11 @@ const renderReport = (id) => {
     }
 
     document.getElementById('btn-close-report').onclick = () => router.navigate('dashboard');
+    document.getElementById('btn-delete-meal').onclick = () => {
+        if(confirm("Delete this meal log?")) {
+            deleteMeal(id);
+        }
+    };
 };
 
 // --- INIT ---
