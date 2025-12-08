@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { UserProfile, MealLog } from '../types';
 import { auth, db } from '../services/firebase';
-import { doc, getDoc, setDoc, collection, query, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { doc, getDoc, setDoc, collection, query, orderBy, getDocs } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 
 interface AppContextType {
   user: UserProfile | null;
@@ -38,17 +38,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
             if (firebaseUser) {
                 // User is signed in.
-                // If we don't have user state but we have a firebase user, try to sync.
-                // Note: We avoid overwriting state if it's already there to prevent jitters, 
-                // but we ensure we fetch if local storage was empty.
                 const localUser = localStorage.getItem('ni_user');
                 if (!localUser) {
                     await syncWithFirebase(firebaseUser.uid);
                 }
             } else {
                 // User is signed out.
-                // We do not auto-clear here because we support "Guest" mode which might persist locally 
-                // without firebase auth. Only clear if we explicitly logged out via UI.
             }
             setIsLoading(false);
         });
@@ -69,9 +64,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Sync data from Firestore
   const syncWithFirebase = async (uid: string) => {
     if (!db) return false;
-    // Don't set global loading here to avoid flashing if called in background, 
-    // but useful for login flow. Login flow handles its own loading usually, 
-    // but here we ensure consistency.
     
     try {
       // 1. Get User Profile
@@ -79,8 +71,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (userDoc.exists()) {
         const data = userDoc.data();
         
-        // Handle legacy profiles that might miss the 'onboardingComplete' flag
-        // If a profile exists in DB, we assume they finished onboarding previously.
         const userData: UserProfile = {
             ...data as UserProfile,
             onboardingComplete: data.onboardingComplete ?? true

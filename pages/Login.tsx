@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { auth } from '../services/firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 
@@ -70,9 +70,6 @@ export const Login: React.FC = () => {
     // Clear any previous session
     setUser(null);
     // Proceed to onboarding as a fresh "guest"
-    // Ideally we might check if a guest user already exists in local storage, but for now we assume guest = fresh start or local continuation
-    // If local storage exists, AppContext load effect handles it.
-    // If we want to Force a guest login even if logged out:
     const localUser = localStorage.getItem('ni_user');
     if (localUser) {
         navigate('/dashboard');
