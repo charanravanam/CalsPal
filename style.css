@@ -2,6 +2,7 @@ body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     background-color: #fafafa;
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Hide scrollbar for Chrome, Safari and Opera */
@@ -41,4 +42,86 @@ input:read-only {
     background-color: #f4f4f5; 
     color: #71717a;
     cursor: not-allowed;
+}
+
+/* Loading Overlay */
+#loading-overlay {
+    background-color: rgba(255,255,255,0.9);
+    backdrop-filter: blur(4px);
+}
+
+/* --- THEME OVERRIDES --- */
+
+/* DARK THEME */
+body.dark {
+    background-color: #09090b; /* zinc-950 */
+    color: #f4f4f5; /* zinc-100 */
+}
+
+body.dark .bg-white {
+    background-color: #18181b; /* zinc-900 */
+    border-color: #27272a; /* zinc-800 */
+    color: #e4e4e7; /* zinc-200 */
+}
+
+body.dark .bg-zinc-50 {
+    background-color: #09090b;
+}
+
+body.dark .bg-zinc-100 {
+    background-color: #27272a;
+    color: #e4e4e7;
+    border-color: #3f3f46;
+}
+
+body.dark input, body.dark select, body.dark textarea {
+    background-color: #18181b;
+    border-color: #3f3f46;
+    color: white;
+}
+
+body.dark .text-zinc-900 { color: #f4f4f5; }
+body.dark .text-zinc-700 { color: #d4d4d8; }
+body.dark .text-zinc-600 { color: #a1a1aa; }
+body.dark .text-zinc-500 { color: #71717a; }
+
+/* GOLD THEME (Premium) */
+body.gold {
+    background-color: #020617; /* slate-950 */
+    color: #fde68a; /* amber-200 */
+    background-image: radial-gradient(circle at top, #1e1b4b, #020617);
+}
+
+body.gold .bg-white {
+    background-color: #0f172a; /* slate-900 */
+    border-color: #fbbf24; /* amber-400 */
+    box-shadow: 0 4px 6px -1px rgba(251, 191, 36, 0.1), 0 2px 4px -1px rgba(251, 191, 36, 0.06);
+    color: #fef3c7; /* amber-100 */
+}
+
+body.gold .bg-zinc-50 {
+    background-color: #020617;
+}
+
+body.gold .bg-zinc-100 {
+    background-color: #1e293b; /* slate-800 */
+    border-color: #b45309; /* amber-700 */
+    color: #fcd34d;
+}
+
+body.gold input, body.gold select, body.gold textarea {
+    background-color: #0f172a;
+    border-color: #d97706; /* amber-600 */
+    color: #fef3c7;
+}
+
+body.gold .text-zinc-900 { color: #fffbeb; /* amber-50 */ text-shadow: 0 0 2px #d97706; }
+body.gold .text-zinc-700 { color: #fde68a; /* amber-200 */ }
+body.gold .text-zinc-600 { color: #fcd34d; /* amber-300 */ }
+body.gold .text-zinc-500 { color: #d97706; /* amber-600 */ }
+body.gold button.bg-zinc-900 {
+    background: linear-gradient(135deg, #f59e0b 0%, #b45309 100%);
+    color: white;
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+    border: 1px solid #fcd34d;
 }

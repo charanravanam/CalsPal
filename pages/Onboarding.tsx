@@ -5,18 +5,18 @@ import { Goal, Gender, ActivityLevel, UserProfile } from '../types';
 import { Button } from '../components/Button';
 
 export const Onboarding: React.FC = () => {
-  const { setUser } = useApp();
+  const { setUser, user } = useApp();
   const navigate = useNavigate();
   
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<Partial<UserProfile>>({
-    name: '',
-    age: 30,
-    height: 170,
-    weight: 70,
-    gender: Gender.MALE,
-    activityLevel: ActivityLevel.MODERATE,
-    goal: Goal.MAINTAIN,
+    name: user?.name || '',
+    age: user?.age || 30,
+    height: user?.height || 170,
+    weight: user?.weight || 70,
+    gender: user?.gender || Gender.MALE,
+    activityLevel: user?.activityLevel || ActivityLevel.MODERATE,
+    goal: user?.goal || Goal.MAINTAIN,
   });
 
   const handleNext = () => setStep(s => s + 1);
@@ -48,14 +48,15 @@ export const Onboarding: React.FC = () => {
     return Math.round(tdee);
   };
 
-  const finishOnboarding = () => {
+  const finishOnboarding = async () => {
     const dailyTarget = calculateTDEE(formData);
     const finalProfile: UserProfile = {
       ...formData as UserProfile,
       dailyCalorieTarget: dailyTarget,
       onboardingComplete: true
     };
-    setUser(finalProfile);
+    // setUser now handles Firestore sync if user is logged in
+    await setUser(finalProfile);
     navigate('/dashboard');
   };
 

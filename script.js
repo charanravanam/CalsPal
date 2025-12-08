@@ -1,44 +1,199 @@
 import { analyzeMealWithGemini } from './gemini.js';
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { 
+    getAuth, 
+    signOut, 
+    onAuthStateChanged,
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword 
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+// --- FIREBASE CONFIGURATION ---
+const firebaseConfig = {
+    apiKey: "AIzaSyB4AVx4xPWqBtRs2GXFShiqHQNfYtaXWkU",
+    authDomain: "dr-foodie-bc477.firebaseapp.com",
+    projectId: "dr-foodie-bc477",
+    storageBucket: "dr-foodie-bc477.firebasestorage.app",
+    messagingSenderId: "162055987584",
+    appId: "1:162055987584:web:e11db26bb62ae6544f6165",
+    measurementId: "G-HXM8JW7Q1Z"
+};
+
+let app, auth, db;
+let currentUser = null;
+
+try {
+    app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    db = getFirestore(app);
+} catch (e) {
+    console.error("Firebase Init Error:", e);
+}
 
 // --- STATE MANAGEMENT ---
 const state = {
-    user: JSON.parse(localStorage.getItem('ni_user')) || null,
-    meals: JSON.parse(localStorage.getItem('ni_meals')) || [],
+    user: null,
+    meals: [],
 };
 
-const saveUser = (user) => {
-    state.user = user;
-    localStorage.setItem('ni_user', JSON.stringify(user));
+const showLoading = (show) => {
+    const el = document.getElementById('loading-overlay');
+    if (show) el.classList.remove('hidden');
+    else el.classList.add('hidden');
 };
 
-const saveMeal = (meal) => {
+// Async Save User Profile
+const saveUser = async (userProfile) => {
+    state.user = userProfile;
+    // Always save to local storage as backup/guest mode
+    localStorage.setItem('ni_user', JSON.stringify(userProfile));
+
+    if (currentUser && !currentUser.isAnonymous && db) {
+        try {
+            await setDoc(doc(db, "users", currentUser.uid), userProfile, { merge: true });
+        } catch (e) {
+            console.error("Error saving user:", e);
+        }
+    }
+};
+
+// Async Save Meal
+const saveMeal = async (meal) => {
     state.meals = [meal, ...state.meals];
+    // Always save to local storage as backup/guest mode
     localStorage.setItem('ni_meals', JSON.stringify(state.meals));
+    
+    if (currentUser && !currentUser.isAnonymous && db) {
+        try {
+            await setDoc(doc(db, "users", currentUser.uid, "meals", meal.id), meal);
+        } catch (e) {
+            console.error("Error saving meal:", e);
+        }
+    }
 };
 
-const deleteMeal = (id) => {
+// Async Delete Meal
+const deleteMeal = async (id) => {
     state.meals = state.meals.filter(m => m.id !== id);
     localStorage.setItem('ni_meals', JSON.stringify(state.meals));
+    
+    if (currentUser && !currentUser.isAnonymous && db) {
+        try {
+            await deleteDoc(doc(db, "users", currentUser.uid, "meals", id));
+        } catch (e) {
+            console.error("Error deleting meal:", e);
+        }
+    }
+
     // If currently viewing report, go back to dashboard
     const reportView = document.getElementById('view-report');
     if (!reportView.classList.contains('hidden')) {
         router.navigate('dashboard');
     } else {
-        renderDashboard(); // Re-render if on dashboard
+        renderDashboard(); 
     }
 };
 
-const logout = () => {
-    if(confirm("Are you sure you want to log out? All local data will be cleared.")) {
-        localStorage.removeItem('ni_user');
-        localStorage.removeItem('ni_meals');
-        state.user = null;
-        state.meals = [];
-        location.reload();
+// Auth Functions
+const startGuestMode = () => {
+     console.log("Starting Guest Mode");
+     localStorage.setItem('ni_is_guest', 'true');
+     currentUser = { uid: 'guest', isAnonymous: true, photoURL: null, displayName: 'Guest' };
+     syncData('guest');
+};
+
+const loginWithEmail = async () => {
+    const email = document.getElementById('inp-email').value;
+    const pass = document.getElementById('inp-password').value;
+    if(!email || !pass) return alert("Please enter email and password");
+    
+    showLoading(true);
+    try {
+         localStorage.removeItem('ni_is_guest');
+        await signInWithEmailAndPassword(auth, email, pass);
+    } catch(e) {
+        showLoading(false);
+        alert("Login Error: " + e.message);
     }
 };
 
-// Helper: Calculate Age from DOB string (YYYY-MM-DD)
+const signupWithEmail = async () => {
+    const email = document.getElementById('inp-email').value;
+    const pass = document.getElementById('inp-password').value;
+    if(!email || !pass) return alert("Please enter email and password");
+    
+    showLoading(true);
+    try {
+        localStorage.removeItem('ni_is_guest');
+        await createUserWithEmailAndPassword(auth, email, pass);
+        // Success handled by auth state listener
+    } catch(e) {
+        showLoading(false);
+        alert("Signup Error: " + e.message);
+    }
+};
+
+const logout = async () => {
+    if (confirm("Are you sure you want to log out?")) {
+        try {
+            localStorage.removeItem('ni_is_guest');
+            if (auth) await signOut(auth);
+            state.user = null;
+            state.meals = [];
+            currentUser = null;
+            router.navigate('login');
+        } catch (e) {
+            console.error("Logout Error", e);
+        }
+    }
+};
+
+// Data Syncing
+const syncData = async (uid) => {
+    showLoading(true);
+    try {
+        if (uid === 'guest') {
+            // Local Storage Sync
+            const localUser = localStorage.getItem('ni_user');
+            const localMeals = localStorage.getItem('ni_meals');
+            
+            if (localUser) {
+                state.user = JSON.parse(localUser);
+                state.meals = localMeals ? JSON.parse(localMeals) : [];
+                router.navigate('dashboard');
+            } else {
+                state.user = null;
+                state.meals = [];
+                router.navigate('onboarding');
+            }
+        } else {
+            // Firebase Sync
+            const userDoc = await getDoc(doc(db, "users", uid));
+            if (userDoc.exists()) {
+                state.user = userDoc.data();
+                const q = query(collection(db, "users", uid, "meals"), orderBy("timestamp", "desc"));
+                const querySnapshot = await getDocs(q);
+                state.meals = [];
+                querySnapshot.forEach((doc) => {
+                    state.meals.push(doc.data());
+                });
+                router.navigate('dashboard');
+            } else {
+                state.user = null;
+                state.meals = [];
+                router.navigate('onboarding');
+            }
+        }
+    } catch (e) {
+        console.error("Sync Error:", e);
+        alert("Failed to sync data. Check console.");
+    } finally {
+        showLoading(false);
+    }
+};
+
+// Helper: Calculate Age
 const calculateAge = (dobString) => {
     if (!dobString) return 30; // Default
     const dob = new Date(dobString);
@@ -47,7 +202,7 @@ const calculateAge = (dobString) => {
     return Math.abs(age_dt.getUTCFullYear() - 1970);
 };
 
-// Helper: Calculate TDEE based on profile object
+// Helper: Calculate TDEE
 const calculateTDEEValue = (profile) => {
     const age = calculateAge(profile.dob);
     let bmr = 0;
@@ -58,9 +213,8 @@ const calculateTDEEValue = (profile) => {
         bmr = 447.593 + (9.247 * profile.weight) + (3.098 * profile.height) - (4.330 * age);
     }
     
-    let tdee = bmr * 1.55; // Moderate Activity Assumed
+    let tdee = bmr * 1.55; 
     
-    // Goal logic
     if (profile.goal === 'Lose Weight') tdee -= 500;
     if (profile.goal === 'Gain Weight') tdee += 300; 
     if (profile.goal === 'Build Muscle') tdee += 500; 
@@ -70,6 +224,7 @@ const calculateTDEEValue = (profile) => {
 
 // --- ROUTER ---
 const views = {
+    'login': document.getElementById('view-login'),
     'onboarding': document.getElementById('view-onboarding'),
     'dashboard': document.getElementById('view-dashboard'),
     'add-meal': document.getElementById('view-add-meal'),
@@ -105,10 +260,29 @@ const router = {
         const nav = document.getElementById('nav-bar');
         const header = document.getElementById('header');
         
-        // Show Nav/Header only on Dashboard
         if (viewName === 'dashboard') {
             if(nav) nav.classList.remove('hidden');
             if(header) header.classList.remove('hidden');
+            
+            // Profile Image Logic
+            const img = document.getElementById('header-profile-img');
+            const ph = document.getElementById('header-profile-placeholder');
+            const badge = document.getElementById('guest-badge');
+            
+            if (currentUser && currentUser.photoURL) {
+                img.src = currentUser.photoURL;
+                img.classList.remove('hidden');
+                ph.classList.add('hidden');
+                if(badge) badge.classList.add('hidden');
+            } else if (currentUser && currentUser.isAnonymous) {
+                 img.classList.add('hidden');
+                 ph.classList.remove('hidden');
+                 if(badge) badge.classList.remove('hidden');
+            } else {
+                 img.classList.add('hidden');
+                 ph.classList.remove('hidden');
+                 if(badge) badge.classList.add('hidden');
+            }
         } else {
             if(nav) nav.classList.add('hidden');
             if(header) header.classList.add('hidden');
@@ -127,7 +301,6 @@ const obLogic = () => {
         healthIssues: [] 
     };
 
-    // Health Issue Suggestions
     const commonIssues = [
         "Diabetes", "High Sugar", "Hypertension", "High Blood Pressure", 
         "PCOS", "Thyroid", "Joint Pain", "Arthritis", "Acid Reflux", 
@@ -151,7 +324,7 @@ const obLogic = () => {
         });
     };
 
-    // Input Logic for Health
+    // Health Input Logic
     const healthInp = document.getElementById('inp-health');
     const suggestBox = document.getElementById('health-suggestions');
     
@@ -183,7 +356,6 @@ const obLogic = () => {
                 suggestBox.classList.add('hidden');
             }
         };
-        // Allow adding custom issues on Enter
         healthInp.onkeydown = (e) => {
             if(e.key === 'Enter' && healthInp.value) {
                 const val = healthInp.value.trim();
@@ -196,7 +368,6 @@ const obLogic = () => {
             }
         };
     }
-
 
     const updateStep = () => {
         const stepNum = document.getElementById('ob-step-num');
@@ -218,7 +389,6 @@ const obLogic = () => {
             if (step === 4) title.innerText = "Let's check the numbers.";
         }
         
-        // Button state
         const backBtn = document.getElementById('btn-back');
         if(backBtn) backBtn.classList.toggle('hidden', step === 1);
         
@@ -228,7 +398,7 @@ const obLogic = () => {
 
     const nextBtn = document.getElementById('btn-next');
     if(nextBtn) {
-        nextBtn.onclick = () => {
+        nextBtn.onclick = async () => {
             if (step === 1) {
                 formData.name = document.getElementById('inp-name').value;
                 formData.height = Number(document.getElementById('inp-height').value);
@@ -241,19 +411,18 @@ const obLogic = () => {
                 
                 step++;
             } else if (step === 2) {
-                // Health step
                 step++;
             } else if (step === 3) {
-                // Goal step
                 step++;
-                // Calc TDEE
                 const tdee = calculateTDEEValue(formData);
                 const tdeeDisplay = document.getElementById('tdee-display');
                 if(tdeeDisplay) tdeeDisplay.innerText = tdee;
 
             } else if (step === 4) {
                 const finalTdee = Number(document.getElementById('tdee-display').innerText);
-                saveUser({ ...formData, dailyCalorieTarget: finalTdee });
+                showLoading(true);
+                await saveUser({ ...formData, dailyCalorieTarget: finalTdee });
+                showLoading(false);
                 router.navigate('dashboard');
             }
             updateStep();
@@ -268,24 +437,21 @@ const obLogic = () => {
         };
     }
 
-    // Goal Selection Styling
+    // Goal Selection
     document.querySelectorAll('.goal-btn').forEach(btn => {
         btn.onclick = () => {
             document.querySelectorAll('.goal-btn').forEach(b => {
-                b.classList.remove('selected-goal'); // Remove active class
-                b.classList.add('border-zinc-100', 'bg-white', 'text-zinc-900'); // Reset to default
-                b.classList.remove('border-zinc-900', 'bg-zinc-900', 'text-white'); // Remove active styling
-                // Reset subtitle opacity
+                b.classList.remove('selected-goal');
+                b.classList.add('border-zinc-100', 'bg-white', 'text-zinc-900');
+                b.classList.remove('border-zinc-900', 'bg-zinc-900', 'text-white');
                 const span = b.querySelector('span:last-child');
                 if(span) { span.classList.add('opacity-70'); span.classList.remove('text-zinc-400'); }
             });
 
-            // Add active class and styling
             btn.classList.add('selected-goal');
             btn.classList.remove('border-zinc-100', 'bg-white', 'text-zinc-900');
             btn.classList.add('border-zinc-900', 'bg-zinc-900', 'text-white');
             
-            // Adjust subtitle color for contrast
             const span = btn.querySelector('span:last-child');
             if(span) { span.classList.remove('opacity-70'); span.classList.add('text-zinc-400'); }
 
@@ -299,16 +465,15 @@ const renderProfile = () => {
     const user = state.user;
     if(!user) return router.navigate('onboarding');
 
-    // Populate Fields
     document.getElementById('edit-name').value = user.name || '';
     document.getElementById('edit-height').value = user.height || 170;
     document.getElementById('edit-weight').value = user.weight || 70;
-    document.getElementById('edit-dob').value = user.dob || ''; // Expecting YYYY-MM-DD
+    document.getElementById('edit-dob').value = user.dob || ''; 
     document.getElementById('edit-gender').value = user.gender || 'Male';
 
     const saveBtn = document.getElementById('btn-save-profile');
     if(saveBtn) {
-        saveBtn.onclick = () => {
+        saveBtn.onclick = async () => {
             const newHeight = Number(document.getElementById('edit-height').value);
             const newWeight = Number(document.getElementById('edit-weight').value);
             const newDob = document.getElementById('edit-dob').value;
@@ -319,7 +484,6 @@ const renderProfile = () => {
                 return;
             }
 
-            // Create updated user object
             const updatedUser = {
                 ...user,
                 height: newHeight,
@@ -328,10 +492,11 @@ const renderProfile = () => {
                 gender: newGender
             };
 
-            // Recalculate Target
             updatedUser.dailyCalorieTarget = calculateTDEEValue(updatedUser);
 
-            saveUser(updatedUser);
+            showLoading(true);
+            await saveUser(updatedUser);
+            showLoading(false);
             router.navigate('dashboard');
         };
     }
@@ -340,25 +505,21 @@ const renderProfile = () => {
 // --- DASHBOARD LOGIC ---
 const renderDashboard = () => {
     const user = state.user;
-    if (!user) return router.navigate('onboarding');
+    if (!user) return router.navigate('login');
 
-    // Setup Menu Actions
     const menuBtn = document.getElementById('btn-profile-menu');
     const menuDropdown = document.getElementById('profile-dropdown');
     
-    // Toggle Menu
     if(menuBtn) {
         menuBtn.onclick = (e) => {
             e.stopPropagation();
             menuDropdown.classList.toggle('hidden');
         };
     }
-    // Close menu when clicking outside
     document.addEventListener('click', () => {
         if(menuDropdown && !menuDropdown.classList.contains('hidden')) menuDropdown.classList.add('hidden');
     });
 
-    // Menu Actions
     const logoutBtn = document.getElementById('btn-logout');
     if(logoutBtn) logoutBtn.onclick = logout;
 
@@ -370,13 +531,11 @@ const renderDashboard = () => {
         document.getElementById('modal-admin').classList.remove('hidden');
     };
 
-    // Header
     const dateOpts = { weekday: 'long', day: 'numeric', month: 'long' };
     document.getElementById('date-display').innerText = new Date().toLocaleDateString('en-US', dateOpts);
     document.getElementById('user-name-display').innerText = user.name;
     document.getElementById('user-goal-display').innerText = user.goal;
 
-    // Daily Stats
     const today = new Date().setHours(0,0,0,0);
     const todayMeals = state.meals.filter(m => new Date(m.timestamp).setHours(0,0,0,0) === today);
     const consumed = todayMeals.reduce((acc, curr) => acc + (curr.analysis.calories || 0), 0);
@@ -387,7 +546,6 @@ const renderDashboard = () => {
     document.getElementById('remaining-val').innerText = Math.max(0, target - consumed);
     document.getElementById('meals-count').innerText = todayMeals.length;
 
-    // Progress Bar
     const pct = Math.min(100, (consumed / target) * 100);
     const bar = document.getElementById('progress-bar');
     bar.style.width = `${pct}%`;
@@ -397,19 +555,16 @@ const renderDashboard = () => {
     badge.innerText = consumed > target ? 'Over Limit' : 'On Track';
     badge.className = `text-xs font-bold px-2 py-1 rounded ${consumed > target ? 'bg-red-100 text-red-700' : 'bg-zinc-100 text-zinc-600'}`;
 
-    // Recent Meals List
     const list = document.getElementById('meals-list');
     list.innerHTML = '';
     
     if (todayMeals.length === 0) {
         list.innerHTML = `<div class="text-center py-10 bg-white rounded-2xl border border-dashed border-zinc-200"><p class="text-zinc-400">No meals logged yet today.</p></div>`;
     } else {
-        // Sort by newest first
         todayMeals.sort((a, b) => b.timestamp - a.timestamp).forEach(meal => {
             const item = document.createElement('div');
             item.className = "bg-white p-4 rounded-xl border border-zinc-100 shadow-sm flex items-center gap-4 active:scale-[0.99] transition-transform cursor-pointer relative group";
             
-            // Navigate on click (but prevent if clicking delete)
             item.onclick = (e) => {
                 if(!e.target.closest('.delete-btn')) {
                     router.navigate('report', { id: meal.id });
@@ -420,11 +575,10 @@ const renderDashboard = () => {
                 ? `<img src="${meal.imageUri}" class="w-full h-full object-cover">`
                 : `<div class="w-full h-full flex items-center justify-center text-2xl">🍽️</div>`;
 
-            // Verdict Color Map
             const v = meal.analysis.primaryVerdict;
             let vClass = "text-zinc-600 bg-zinc-50 border-zinc-100";
             if(v.includes("Needed")) vClass = "text-emerald-600 bg-emerald-50 border-emerald-100";
-            if(v.includes("Dangerous") || v.includes("Unhealthy")) vClass = "text-red-600 bg-red-50 border-red-100";
+            if(v.includes("Dangerous")) vClass = "text-red-600 bg-red-50 border-red-100";
             if(v.includes("High Calorie")) vClass = "text-amber-600 bg-amber-50 border-amber-100";
 
             item.innerHTML = `
@@ -442,7 +596,6 @@ const renderDashboard = () => {
                 </button>
             `;
             
-            // Delete Action
             const delBtn = item.querySelector('.delete-btn');
             delBtn.onclick = (e) => {
                 e.stopPropagation();
@@ -474,7 +627,6 @@ const addMealLogic = () => {
     document.getElementById('tab-camera').onclick = () => setMode('camera');
     document.getElementById('tab-text').onclick = () => setMode('text');
 
-    // File Input
     const fileInp = document.getElementById('file-input');
     const dropZone = document.getElementById('drop-zone');
     const clearBtn = document.getElementById('btn-clear-image');
@@ -510,7 +662,6 @@ const addMealLogic = () => {
         };
     }
 
-    // Meal Type
     document.querySelectorAll('.type-btn').forEach(btn => {
         btn.onclick = () => {
             document.querySelectorAll('.type-btn').forEach(b => {
@@ -527,10 +678,8 @@ const addMealLogic = () => {
     const analyzeBtn = document.getElementById('btn-analyze');
     if(analyzeBtn) {
         analyzeBtn.onclick = async () => {
-            // Collect Inputs
             const textVal = mode === 'text' ? document.getElementById('text-input').value : document.getElementById('input-description').value;
             const quantityVal = document.getElementById('input-quantity').value;
-            
             const errEl = document.getElementById('error-message');
             
             if (mode === 'camera' && !imageBase64) return;
@@ -541,11 +690,10 @@ const addMealLogic = () => {
             errEl.classList.add('hidden');
 
             try {
-                // Pass new fields to Gemini
                 const analysis = await analyzeMealWithGemini(
                     mode === 'camera' ? imageBase64 : undefined,
-                    textVal, // Description
-                    quantityVal, // Quantity
+                    textVal,
+                    quantityVal,
                     state.user
                 );
 
@@ -558,7 +706,7 @@ const addMealLogic = () => {
                     analysis
                 };
 
-                saveMeal(newMeal);
+                await saveMeal(newMeal);
                 router.navigate('report', { id: newMeal.id });
 
             } catch (error) {
@@ -579,7 +727,6 @@ const addMealLogic = () => {
         document.getElementById('drop-zone-content').classList.remove('hidden');
         document.getElementById('btn-clear-image').classList.add('hidden');
         
-        // Reset fields
         document.getElementById('text-input').value = '';
         document.getElementById('input-description').value = '';
         document.getElementById('input-quantity').value = '';
@@ -596,7 +743,6 @@ const renderReport = (id) => {
 
     const data = meal.analysis;
 
-    // Header
     const imgEl = document.getElementById('report-img');
     const iconEl = document.getElementById('report-icon');
     if (meal.imageUri) {
@@ -611,21 +757,18 @@ const renderReport = (id) => {
     document.getElementById('report-title').innerText = data.foodName;
     document.getElementById('report-meta').innerText = `${new Date(meal.timestamp).toLocaleDateString()} • ${meal.type}`;
 
-    // Metrics
     document.getElementById('report-cals').innerText = data.calories;
     document.getElementById('report-burn').innerText = data.burnTimeText;
     
     const vEl = document.getElementById('report-verdict');
     vEl.innerText = data.primaryVerdict;
     
-    // Verdict Colors
     let vColor = 'bg-zinc-100 text-zinc-800 border-zinc-200';
     if (data.primaryVerdict.includes("Needed")) vColor = 'bg-emerald-100 text-emerald-800 border-emerald-200';
     if (data.primaryVerdict.includes("Dangerous")) vColor = 'bg-red-100 text-red-800 border-red-200';
     if (data.primaryVerdict.includes("High Calorie")) vColor = 'bg-amber-100 text-amber-800 border-amber-200';
     vEl.className = `inline-block px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider border ${vColor}`;
 
-    // Secondary Verdicts
     const subVEl = document.getElementById('report-sub-verdicts');
     subVEl.innerHTML = '';
     if (data.secondaryVerdicts) {
@@ -637,7 +780,6 @@ const renderReport = (id) => {
         });
     }
 
-    // Macros
     const macrosEl = document.getElementById('report-macros');
     macrosEl.innerHTML = '';
     if (data.macros) {
@@ -657,12 +799,10 @@ const renderReport = (id) => {
         `;
     }
 
-    // Text Content
     document.getElementById('report-goal-text').innerText = `"${data.goalAlignmentText}"`;
     document.getElementById('report-portion').innerText = data.portionGuidance;
     document.getElementById('report-freq').innerText = data.frequencyGuidance;
 
-    // Alerts
     const alertsEl = document.getElementById('report-alerts');
     const alertsList = document.getElementById('report-alerts-list');
     alertsList.innerHTML = '';
@@ -693,9 +833,38 @@ document.addEventListener('DOMContentLoaded', () => {
     obLogic();
     addMealLogic();
 
-    if (state.user) {
-        router.navigate('dashboard');
+    const emailLoginBtn = document.getElementById('btn-email-login');
+    if(emailLoginBtn) emailLoginBtn.onclick = loginWithEmail;
+
+    const emailSignupBtn = document.getElementById('btn-email-signup');
+    if(emailSignupBtn) emailSignupBtn.onclick = signupWithEmail;
+    
+    const guestBtn = document.getElementById('btn-guest-login');
+    if(guestBtn) guestBtn.onclick = startGuestMode;
+
+    // Check Firebase connection
+    if (auth) {
+        onAuthStateChanged(auth, (user) => {
+            // Check local storage flag first to persist Guest Mode across reloads
+            const isGuestSession = localStorage.getItem('ni_is_guest') === 'true';
+
+            if (isGuestSession) {
+                console.log("Restoring Guest Session");
+                startGuestMode(); // Re-initialize guest user state
+                return;
+            }
+            
+            currentUser = user;
+            if (user) {
+                syncData(user.uid);
+            } else {
+                showLoading(false);
+                router.navigate('login');
+            }
+        });
     } else {
-        router.navigate('onboarding');
+        console.warn("Firebase not connected. Check config.");
+        // Dev fallback logic if needed, or stick to login screen
+        router.navigate('login');
     }
 });

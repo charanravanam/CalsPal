@@ -1,13 +1,17 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { UserProfile, MealLog } from '../types';
+import { auth, db } from '../services/firebase';
+import { doc, getDoc, setDoc, collection, query, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 interface AppContextType {
   user: UserProfile | null;
-  setUser: (user: UserProfile) => void;
+  setUser: (user: UserProfile | null) => void;
   meals: MealLog[];
   addMeal: (meal: MealLog) => void;
   getDailyCalories: () => number;
   isLoading: boolean;
+  syncWithFirebase: (uid: string) => Promise<boolean>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -28,18 +32,127 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (savedMeals) {
       setMeals(JSON.parse(savedMeals));
     }
-    setIsLoading(false);
+    
+    // Setup Auth Listener
+    if (auth) {
+        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+            if (firebaseUser) {
+                // User is signed in.
+                // If we don't have user state but we have a firebase user, try to sync.
+                // Note: We avoid overwriting state if it's already there to prevent jitters, 
+                // but we ensure we fetch if local storage was empty.
+                const localUser = localStorage.getItem('ni_user');
+                if (!localUser) {
+                    await syncWithFirebase(firebaseUser.uid);
+                }
+            } else {
+                // User is signed out.
+                // We do not auto-clear here because we support "Guest" mode which might persist locally 
+                // without firebase auth. Only clear if we explicitly logged out via UI.
+            }
+            setIsLoading(false);
+        });
+        return () => unsubscribe();
+    } else {
+        setIsLoading(false);
+    }
   }, []);
 
-  const setUser = (newUser: UserProfile) => {
-    setUserState(newUser);
-    localStorage.setItem('ni_user', JSON.stringify(newUser));
+  // Theme Effect
+  useEffect(() => {
+    document.body.classList.remove('dark', 'gold');
+    if (user?.theme && user.theme !== 'light') {
+      document.body.classList.add(user.theme);
+    }
+  }, [user?.theme]);
+
+  // Sync data from Firestore
+  const syncWithFirebase = async (uid: string) => {
+    if (!db) return false;
+    // Don't set global loading here to avoid flashing if called in background, 
+    // but useful for login flow. Login flow handles its own loading usually, 
+    // but here we ensure consistency.
+    
+    try {
+      // 1. Get User Profile
+      const userDoc = await getDoc(doc(db, "users", uid));
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        
+        // Handle legacy profiles that might miss the 'onboardingComplete' flag
+        // If a profile exists in DB, we assume they finished onboarding previously.
+        const userData: UserProfile = {
+            ...data as UserProfile,
+            onboardingComplete: data.onboardingComplete ?? true
+        };
+        
+        setUserState(userData);
+        localStorage.setItem('ni_user', JSON.stringify(userData));
+        
+        // 2. Get Meals
+        const q = query(collection(db, "users", uid, "meals"), orderBy("timestamp", "desc"));
+        const querySnapshot = await getDocs(q);
+        const fetchedMeals: MealLog[] = [];
+        querySnapshot.forEach((doc) => {
+            fetchedMeals.push(doc.data() as MealLog);
+        });
+        
+        setMeals(fetchedMeals);
+        localStorage.setItem('ni_meals', JSON.stringify(fetchedMeals));
+        return true;
+      } else {
+        return false; // User document doesn't exist (new user via auth)
+      }
+    } catch (e) {
+      console.error("Sync Error:", e);
+      return false;
+    }
   };
 
-  const addMeal = (meal: MealLog) => {
+  const setUser = async (newUser: UserProfile | null) => {
+    if (newUser) {
+      // Enforce theme rules
+      if (newUser.theme && newUser.theme !== 'light' && !newUser.isPremium) {
+        newUser.theme = 'light';
+      }
+      
+      setUserState(newUser);
+      localStorage.setItem('ni_user', JSON.stringify(newUser));
+
+      // Sync to Firebase if logged in
+      if (auth?.currentUser && db) {
+        try {
+          // Remove undefined values for Firestore
+          const firestoreUser = JSON.parse(JSON.stringify(newUser));
+          await setDoc(doc(db, "users", auth.currentUser.uid), firestoreUser, { merge: true });
+        } catch (e) { console.error("Error saving user to DB:", e); }
+      }
+
+    } else {
+      // Logout logic
+      localStorage.removeItem('ni_user');
+      localStorage.removeItem('ni_meals'); // Also clear meals on logout
+      setMeals([]);
+      setUserState(null);
+      if (auth) {
+        try { await auth.signOut(); } catch(e) {}
+      }
+    }
+  };
+
+  const addMeal = async (meal: MealLog) => {
     const updatedMeals = [meal, ...meals];
     setMeals(updatedMeals);
     localStorage.setItem('ni_meals', JSON.stringify(updatedMeals));
+
+    // Sync to Firebase if logged in
+    if (auth?.currentUser && db) {
+      try {
+        // Remove undefined values for Firestore (e.g. imageUri)
+        const firestoreMeal = JSON.parse(JSON.stringify(meal));
+        await setDoc(doc(db, "users", auth.currentUser.uid, "meals", meal.id), firestoreMeal);
+      } catch (e) { console.error("Error saving meal to DB:", e); }
+    }
   };
 
   const getDailyCalories = () => {
@@ -50,7 +163,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   return (
-    <AppContext.Provider value={{ user, setUser, meals, addMeal, getDailyCalories, isLoading }}>
+    <AppContext.Provider value={{ user, setUser, meals, addMeal, getDailyCalories, isLoading, syncWithFirebase }}>
       {children}
     </AppContext.Provider>
   );

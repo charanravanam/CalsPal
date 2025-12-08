@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Button } from '../components/Button';
-import { analyzeMealWithGemini } from '../services/geminiService';
+import { analyzeMealWithGemini, generateFoodImage } from '../services/geminiService';
 import { MealType, MealLog } from '../types';
 
 export const AddMeal: React.FC = () => {
@@ -37,17 +37,27 @@ export const AddMeal: React.FC = () => {
     setError(null);
 
     try {
-      const analysis = await analyzeMealWithGemini(
+      // Create promises for both analysis and image generation (if needed)
+      const analysisPromise = analyzeMealWithGemini(
         mode === 'camera' ? (imagePreview as string) : undefined,
         mode === 'text' ? textInput : undefined,
         user
       );
 
+      // If text mode, try to generate an image in parallel to fill the placeholder
+      let imageGenerationPromise: Promise<string | null> = Promise.resolve(null);
+      if (mode === 'text' && textInput) {
+        imageGenerationPromise = generateFoodImage(textInput);
+      }
+
+      // Wait for both results
+      const [analysis, generatedImage] = await Promise.all([analysisPromise, imageGenerationPromise]);
+
       const newMeal: MealLog = {
         id: crypto.randomUUID(),
         timestamp: Date.now(),
         type: mealType,
-        imageUri: imagePreview || undefined,
+        imageUri: (mode === 'camera' ? imagePreview : generatedImage) || undefined,
         textInput: textInput || undefined,
         analysis
       };
@@ -140,6 +150,7 @@ export const AddMeal: React.FC = () => {
               placeholder="e.g. Grilled chicken breast with roasted vegetables and quinoa..."
               className="w-full h-40 p-4 bg-white border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 resize-none"
             />
+             <p className="text-xs text-zinc-400">We'll automatically generate an image of your meal from Google for you.</p>
           </div>
         )}
 
@@ -171,7 +182,7 @@ export const AddMeal: React.FC = () => {
           isLoading={isAnalyzing}
           disabled={mode === 'camera' ? !imagePreview : !textInput}
         >
-          Analyze Meal
+          {isAnalyzing ? (mode === 'text' ? 'Analysing & Generating Image...' : 'Analyzing Meal...') : 'Analyze Meal'}
         </Button>
 
       </div>

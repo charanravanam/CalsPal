@@ -34,6 +34,8 @@ export enum VerdictStatus {
   HIGH_CHEMICALS = 'High Chemicals'
 }
 
+export type Theme = 'light' | 'dark' | 'gold';
+
 export interface UserProfile {
   name: string;
   age: number;
@@ -44,6 +46,8 @@ export interface UserProfile {
   goal: Goal;
   dailyCalorieTarget: number;
   onboardingComplete: boolean;
+  isPremium?: boolean;
+  theme?: Theme;
 }
 
 export interface NutritionAnalysis {

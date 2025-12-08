@@ -19,6 +19,35 @@ const cleanBase64 = (base64: string) => {
   return base64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, "");
 };
 
+export const generateFoodImage = async (textInput: string): Promise<string | null> => {
+  const ai = getGenAI();
+  const modelId = "gemini-2.5-flash-image";
+
+  try {
+    const response = await ai.models.generateContent({
+      model: modelId,
+      contents: {
+         parts: [{ text: `Generate a realistic, appetizing food photography image of: ${textInput}` }]
+      },
+      // Note: Do not set responseMimeType for image generation models
+    });
+
+    // Iterate to find the image part (it might not be the first part)
+    if (response.candidates?.[0]?.content?.parts) {
+        for (const part of response.candidates[0].content.parts) {
+            if (part.inlineData && part.inlineData.mimeType.startsWith('image/')) {
+                return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+            }
+        }
+    }
+    return null;
+  } catch (error) {
+    console.error("Gemini Image Gen Error:", error);
+    // Fail gracefully, returning null will just show the default placeholder
+    return null;
+  }
+};
+
 export const analyzeMealWithGemini = async (
   imageBase64: string | undefined,
   textInput: string | undefined,
