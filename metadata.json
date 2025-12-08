@@ -1,6 +1,6 @@
 {
-  "name": "Nutrition Intelligence",
-  "description": "A high-end personal nutrition intelligence app that analyzes meals via photo or text to provide clear, goal-oriented health verdicts.",
+  "name": "Dr Foodie",
+  "description": "Dr Foodie is a high-end personal nutrition intelligence app that analyzes meals via photo or text to provide clear, goal-oriented health verdicts.",
   "requestFramePermissions": [
     "camera"
   ]

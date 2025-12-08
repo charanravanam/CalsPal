@@ -84,11 +84,15 @@ export const Login: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col justify-center p-6 bg-zinc-50">
       <div className="text-center space-y-6 animate-fade-in mb-8">
-          <div className="w-20 h-20 bg-zinc-900 rounded-2xl flex items-center justify-center mx-auto shadow-xl shadow-zinc-200">
-              <span className="text-4xl">🍎</span>
+          <div className="w-24 h-24 bg-white rounded-2xl flex items-center justify-center mx-auto shadow-xl shadow-zinc-200 overflow-hidden border border-zinc-100 p-2">
+              <img 
+                src="https://www.foodieqr.com/assets/img/og_img.png" 
+                alt="Dr Foodie Logo" 
+                className="w-full h-full object-contain"
+              />
           </div>
           <div className="space-y-2">
-              <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">Nutrition Intelligence</h1>
+              <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">Dr Foodie</h1>
               <p className="text-zinc-500">Sign in to track your meals and health goals.</p>
           </div>
       </div>

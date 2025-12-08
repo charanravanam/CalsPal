@@ -9,8 +9,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Hide nav on onboarding
-  const hideNav = location.pathname === '/onboarding' || location.pathname === '/';
+  // Hide nav on onboarding and login
+  const hideNav = location.pathname === '/onboarding' || location.pathname === '/' || location.pathname === '/login';
 
   return (
     <div className="min-h-screen bg-zinc-50 text-zinc-900 font-sans selection:bg-zinc-200">
