@@ -5,9 +5,10 @@ let genAI: GoogleGenAI | null = null;
 
 const getGenAI = () => {
   if (!genAI) {
+    // The Vite 'define' plugin replaces process.env.API_KEY with the actual string value
     const apiKey = process.env.API_KEY;
     if (!apiKey) {
-      throw new Error("API_KEY is missing. Please add it to your environment variables.");
+      throw new Error("API_KEY is missing. Please add API_KEY to your environment variables.");
     }
     genAI = new GoogleGenAI({ apiKey });
   }
