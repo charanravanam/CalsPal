@@ -10,7 +10,8 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     define: {
       // Define process.env.API_KEY so it's replaced at build time with the string value
-      'process.env.API_KEY': JSON.stringify(env.API_KEY),
+      // We check both the loaded env object and the actual process.env to be safe
+      'process.env.API_KEY': JSON.stringify(env.API_KEY || process.env.API_KEY),
     },
     build: {
       outDir: 'dist',
