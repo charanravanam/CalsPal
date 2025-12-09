@@ -3,7 +3,7 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-    apiKey: "AIzaSyB4AVx4xPWqBtRs2GXFShiqHQNfYtaXWkU",
+    apiKey: process.env.FIREBASE_API_KEY,
     authDomain: "dr-foodie-bc477.firebaseapp.com",
     projectId: "dr-foodie-bc477",
     storageBucket: "dr-foodie-bc477.firebasestorage.app",

@@ -11,7 +11,7 @@ import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, 
 
 // --- FIREBASE CONFIGURATION ---
 const firebaseConfig = {
-    apiKey: "AIzaSyB4AVx4xPWqBtRs2GXFShiqHQNfYtaXWkU",
+    apiKey: "YOUR_FIREBASE_API_KEY_HERE", // Replace with env var or secure config in production
     authDomain: "dr-foodie-bc477.firebaseapp.com",
     projectId: "dr-foodie-bc477",
     storageBucket: "dr-foodie-bc477.firebasestorage.app",
