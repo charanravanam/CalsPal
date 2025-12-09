@@ -6,9 +6,17 @@ let genAI: GoogleGenAI | null = null;
 const getGenAI = () => {
   if (!genAI) {
     // The Vite 'define' plugin replaces process.env.API_KEY with the actual string value
-    // We assume the key is valid as per instructions.
-    const apiKey = process.env.API_KEY || '';
-    genAI = new GoogleGenAI({ apiKey });
+    const apiKey = process.env.API_KEY;
+    
+    // Debug log to console to verify key presence in production
+    console.log("[GeminiService] Initializing. API Key configured:", !!apiKey);
+
+    if (!apiKey) {
+        console.warn("[GeminiService] API Key is missing. Calls will fail.");
+    }
+    
+    // Initialize the SDK. Pass empty string if missing to avoid immediate crash.
+    genAI = new GoogleGenAI({ apiKey: apiKey || "" });
   }
   return genAI;
 };
@@ -28,10 +36,8 @@ export const generateFoodImage = async (textInput: string): Promise<string | nul
       contents: {
          parts: [{ text: `Generate a realistic, appetizing food photography image of: ${textInput}` }]
       },
-      // Note: Do not set responseMimeType for image generation models
     });
 
-    // Iterate to find the image part (it might not be the first part)
     if (response.candidates?.[0]?.content?.parts) {
         for (const part of response.candidates[0].content.parts) {
             if (part.inlineData && part.inlineData.mimeType.startsWith('image/')) {
@@ -42,7 +48,6 @@ export const generateFoodImage = async (textInput: string): Promise<string | nul
     return null;
   } catch (error) {
     console.error("Gemini Image Gen Error:", error);
-    // Fail gracefully, returning null will just show the default placeholder
     return null;
   }
 };
@@ -54,7 +59,7 @@ export const analyzeMealWithGemini = async (
 ): Promise<NutritionAnalysis> => {
   
   const ai = getGenAI();
-  const modelId = "gemini-2.5-flash"; // Efficient for this task
+  const modelId = "gemini-2.5-flash"; 
 
   const prompt = `
     Analyze this meal log for a user with the following profile:
