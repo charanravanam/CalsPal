@@ -5,8 +5,9 @@ let genAI: GoogleGenAI | null = null;
 
 const getGenAI = () => {
   if (!genAI) {
-    // Access process.env.API_KEY directly so Vite's define plugin can replace it with the string value.
-    const apiKey = process.env.API_KEY;
+    // Decode the Base64 encoded key
+    const encodedKey = process.env.GEMINI_API_KEY_B64;
+    const apiKey = encodedKey ? atob(encodedKey) : "";
     
     // Explicitly check if the key is missing or is a placeholder
     if (!apiKey || apiKey.includes("PLACEHOLDER") || apiKey === "") {

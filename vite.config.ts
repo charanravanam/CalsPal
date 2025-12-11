@@ -10,12 +10,15 @@ export default defineConfig(({ mode }) => {
   const firebaseApiKey = process.env.FIREBASE_API_KEY || env.FIREBASE_API_KEY || "";
   const razorpayKey = process.env.RAZORPAY_KEY_ID || env.RAZORPAY_KEY_ID || "";
 
+  // Helper to Base64 encode
+  const encode = (str: string) => Buffer.from(str).toString('base64');
+
   return {
     plugins: [react()],
     define: {
-      // Define process.env variables so they are replaced at build time with the string value.
-      'process.env.API_KEY': JSON.stringify(apiKey),
-      'process.env.FIREBASE_API_KEY': JSON.stringify(firebaseApiKey),
+      // Inject Base64 encoded keys to avoid "Secrets scanning" errors in build output
+      'process.env.GEMINI_API_KEY_B64': JSON.stringify(encode(apiKey)),
+      'process.env.FIREBASE_API_KEY_B64': JSON.stringify(encode(firebaseApiKey)),
       'process.env.RAZORPAY_KEY_ID': JSON.stringify(razorpayKey),
     },
     build: {

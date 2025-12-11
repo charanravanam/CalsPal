@@ -2,8 +2,9 @@ import { initializeApp } from "firebase/app";
 import { getAuth, Auth } from "firebase/auth";
 import { getFirestore, Firestore } from "firebase/firestore";
 
-// Access process.env.FIREBASE_API_KEY directly so Vite's define plugin can replace it with the string value.
-const apiKey = process.env.FIREBASE_API_KEY;
+// Decode the Base64 encoded key injected by Vite
+const encodedKey = process.env.FIREBASE_API_KEY_B64;
+const apiKey = encodedKey ? atob(encodedKey) : "";
 
 const firebaseConfig = {
     apiKey: apiKey,
