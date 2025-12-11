@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Button } from '../components/Button';
 
-// Declare Razorpay on window
+// Declare Razorpay on window and our global constant
 declare global {
   interface Window {
     Razorpay: any;
   }
 }
+declare const __RAZORPAY_KEY__: string;
 
 export const Premium: React.FC = () => {
   const { user, setUser } = useApp();
@@ -18,12 +19,12 @@ export const Premium: React.FC = () => {
   const handleUpgrade = async () => {
     setIsLoading(true);
     
-    // Decode the Base64 key injected by Vite
+    // Decode the global key
     let key = "";
     try {
-        key = atob(process.env.RAZORPAY_KEY_ID || "");
+        key = atob(__RAZORPAY_KEY__);
     } catch (e) {
-        console.error("Error decoding Razorpay key");
+        console.error("Failed to decode Razorpay Key");
     }
 
     if (!key) {

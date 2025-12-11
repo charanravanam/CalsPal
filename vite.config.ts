@@ -3,24 +3,30 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
-  const env = loadEnv(mode, (process as any).cwd(), '');
+  const env = loadEnv(mode, process.cwd(), '');
   
-  // Fetch keys from Netlify environment (process.env) or local .env
-  const rawApiKey = process.env.API_KEY || env.API_KEY || "";
-  const rawFirebaseKey = process.env.FIREBASE_API_KEY || env.FIREBASE_API_KEY || "";
-  const rawRazorpayKey = process.env.RAZORPAY_KEY_ID || env.RAZORPAY_KEY_ID || "";
+  // Helper to get env vars with priority: System Env (Netlify) > Local .env
+  const getVar = (key: string) => process.env[key] || env[key] || "";
+  
+  const rawApiKey = getVar('API_KEY');
+  const rawFirebaseKey = getVar('FIREBASE_API_KEY');
+  const rawRazorpayKey = getVar('RAZORPAY_KEY_ID');
 
-  // Helper to Base64 encode to prevent raw secrets from appearing in the build output
-  const encode = (str: string) => Buffer.from(str).toString('base64');
+  // Helper to Base64 encode. 
+  // We encode secrets at build time so the raw "AIza..." string never appears in the dist bundle.
+  const encode = (str: string) => {
+    if (!str) return "";
+    return Buffer.from(str).toString('base64');
+  };
 
   return {
     plugins: [react()],
     define: {
-      // Replace process.env.VARIABLE in client code with the ENCODED string value.
-      // This ensures the actual "AIza..." string never exists in the dist/ files.
-      'process.env.API_KEY': JSON.stringify(encode(rawApiKey)),
-      'process.env.FIREBASE_API_KEY': JSON.stringify(encode(rawFirebaseKey)),
-      'process.env.RAZORPAY_KEY_ID': JSON.stringify(encode(rawRazorpayKey)),
+      // Inject encoded keys as global constants.
+      // This bypasses 'process.env' replacement logic which can sometimes leak the raw value.
+      '__GEMINI_KEY__': JSON.stringify(encode(rawApiKey)),
+      '__FIREBASE_KEY__': JSON.stringify(encode(rawFirebaseKey)),
+      '__RAZORPAY_KEY__': JSON.stringify(encode(rawRazorpayKey)),
     },
     build: {
       outDir: 'dist',

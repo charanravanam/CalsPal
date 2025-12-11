@@ -2,11 +2,14 @@ import { initializeApp } from "firebase/app";
 import { getAuth, Auth } from "firebase/auth";
 import { getFirestore, Firestore } from "firebase/firestore";
 
-// The build process injects a Base64 encoded string. Decode it.
+// Declare global constant injected by Vite
+declare const __FIREBASE_KEY__: string;
+
+// Decode the Base64 encoded key
 let apiKey = "";
 try {
-    apiKey = atob(process.env.FIREBASE_API_KEY || "");
-} catch (e) {
+    apiKey = atob(__FIREBASE_KEY__);
+} catch(e) {
     console.error("Failed to decode Firebase Key");
 }
 
