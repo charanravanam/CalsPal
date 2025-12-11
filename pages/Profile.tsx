@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Button } from '../components/Button';
@@ -10,17 +10,36 @@ export const Profile: React.FC = () => {
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   
-  if (!user) return null;
-
+  // Initialize state safely with defaults. 
+  // Hooks must run unconditionally, so we use optional chaining and defaults here.
   const [formData, setFormData] = useState({
-    name: user.name,
-    age: user.age,
-    height: user.height,
-    weight: user.weight,
-    goal: user.goal,
-    activityLevel: user.activityLevel,
-    gender: user.gender
+    name: user?.name || '',
+    age: user?.age || 30,
+    height: user?.height || 170,
+    weight: user?.weight || 70,
+    goal: user?.goal || Goal.MAINTAIN,
+    activityLevel: user?.activityLevel || ActivityLevel.MODERATE,
+    gender: user?.gender || Gender.MALE
   });
+
+  // Sync state if user updates (e.g. after premium upgrade)
+  useEffect(() => {
+    if (user) {
+      setFormData(prev => ({
+        ...prev,
+        name: user.name || prev.name,
+        age: user.age || prev.age,
+        height: user.height || prev.height,
+        weight: user.weight || prev.weight,
+        goal: user.goal || prev.goal,
+        activityLevel: user.activityLevel || prev.activityLevel,
+        gender: user.gender || prev.gender
+      }));
+    }
+  }, [user]);
+
+  // Safe to return null here after hooks are initialized
+  if (!user) return null;
 
   const handleSave = () => {
     // Recalculate TDEE on save
@@ -208,7 +227,7 @@ export const Profile: React.FC = () => {
       <Button variant="danger" onClick={handleLogout} className="mt-8">Log Out</Button>
       
       <div className="text-center text-xs text-zinc-400 pt-4 pb-8">
-        App Version 1.0.2
+        App Version 1.0.3
       </div>
     </div>
   );

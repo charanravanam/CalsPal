@@ -3,23 +3,83 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Button } from '../components/Button';
 
+// Declare Razorpay on window
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
+
 export const Premium: React.FC = () => {
   const { user, setUser } = useApp();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleUpgrade = async () => {
-    setIsLoading(true);
+  const activatePremium = async () => {
+      if (user) {
+          const updatedUser = { ...user, isPremium: true };
+          await setUser(updatedUser);
+          navigate('/profile');
+      } else {
+        setIsLoading(false);
+      }
+  };
+
+  const simulatePremiumUpgrade = async () => {
     // Mock payment delay
     await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    if (user) {
-      // Update context state
-      const updatedUser = { ...user, isPremium: true };
-      await setUser(updatedUser);
-      navigate('/profile');
+    await activatePremium();
+  };
+
+  const handleUpgrade = async () => {
+    setIsLoading(true);
+
+    // Check if Razorpay is loaded via script tag
+    if (window.Razorpay) {
+      try {
+        const options = {
+          key: "rzp_test_1DP5mmOlF5G5ag", // Common test key for demo purposes
+          amount: 999, // Amount in lowest denomination (paise for INR, cents for USD)
+          currency: "USD",
+          name: "Dr Foodie",
+          description: "Premium Upgrade",
+          image: "https://www.foodieqr.com/assets/img/og_img.png",
+          handler: async function (response: any) {
+            // Payment Success
+            console.log("Payment Success:", response);
+            await activatePremium();
+          },
+          prefill: {
+            name: user?.name || "Dr Foodie User",
+            email: "user@example.com",
+            contact: "9999999999"
+          },
+          theme: {
+            color: "#f59e0b"
+          },
+          modal: {
+            ondismiss: function() {
+              setIsLoading(false);
+            }
+          }
+        };
+        
+        const rzp = new window.Razorpay(options);
+        rzp.on('payment.failed', function (response: any){
+            console.error(response.error);
+            alert("Payment failed. Please try again or check console.");
+            setIsLoading(false);
+        });
+        rzp.open();
+      } catch (error) {
+        console.error("Razorpay Error:", error);
+        // Fallback to simulation if initialization fails
+        await simulatePremiumUpgrade();
+      }
+    } else {
+      // Fallback if script not loaded
+      await simulatePremiumUpgrade();
     }
-    setIsLoading(false);
   };
 
   return (
