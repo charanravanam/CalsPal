@@ -5,6 +5,7 @@ let genAI: GoogleGenAI | null = null;
 
 const getEnv = (key: string) => {
   try {
+    // Vite replaces process.env.KEY during build, but we add a safety check
     return typeof process !== 'undefined' ? process.env[key] : '';
   } catch (e) {
     return '';
@@ -17,7 +18,7 @@ const getGenAI = () => {
     
     // Explicitly check if the key is missing or is a placeholder
     if (!apiKey || apiKey.includes("PLACEHOLDER") || apiKey === "") {
-        console.error("[GeminiService] API Key is missing or invalid.");
+        console.warn("[GeminiService] API Key is missing. Features relying on AI will fail gracefully.");
         throw new Error("API_KEY is missing. Please check your environment variables.");
     }
     
@@ -65,6 +66,7 @@ export const analyzeMealWithGemini = async (
   
   try {
     const ai = getGenAI();
+    // Fallback to flash if specific model versions are tricky
     const modelId = "gemini-2.5-flash"; 
     
     const userGoals = Array.isArray(userProfile.goal) ? userProfile.goal.join(", ") : userProfile.goal;
