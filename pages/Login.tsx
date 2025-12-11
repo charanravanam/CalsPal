@@ -1,20 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { auth } from '../services/firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 import { Button } from '../components/Button';
-import { Card } from '../components/Card';
 
 export const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { syncWithFirebase, setUser } = useApp();
+  const { syncWithFirebase, setUser, user } = useApp();
   
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Auto-redirect if already logged in (e.g. from local storage persistence)
+  useEffect(() => {
+    if (user && user.onboardingComplete) {
+      navigate('/dashboard');
+    }
+  }, [user, navigate]);
 
   const getAuthErrorMessage = (code: string) => {
     switch (code) {
@@ -72,18 +78,59 @@ export const Login: React.FC = () => {
   };
 
   const handleGuest = () => {
-    // Clear any previous session
-    setUser(null).then(() => {
-        // Proceed to onboarding as a fresh "guest"
-        const localUser = localStorage.getItem('ni_user');
+    setIsLoading(true);
+    // If local data exists, rely on it (don't wipe it)
+    const localUser = localStorage.getItem('ni_user');
+    
+    setTimeout(() => {
         if (localUser) {
             navigate('/dashboard');
         } else {
             navigate('/onboarding');
         }
-    });
+    }, 500);
   };
 
+  // RENDER: OFFLINE / GUEST MODE (Fallback when API Keys are missing)
+  if (!auth) {
+     return (
+        <div className="min-h-screen flex flex-col justify-center p-6 bg-zinc-50">
+            <div className="text-center space-y-6 animate-fade-in mb-8">
+                <div className="w-24 h-24 bg-white rounded-2xl flex items-center justify-center mx-auto shadow-xl shadow-zinc-200 overflow-hidden border border-zinc-100 p-2">
+                    <img 
+                        src="https://www.foodieqr.com/assets/img/og_img.png" 
+                        alt="Dr Foodie Logo" 
+                        className="w-full h-full object-contain"
+                    />
+                </div>
+                <div className="space-y-2">
+                    <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">Dr Foodie</h1>
+                    <p className="text-zinc-500">Personal nutrition intelligence.</p>
+                </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl border border-zinc-100 shadow-sm space-y-6 text-center">
+                <div className="space-y-2">
+                    <h3 className="font-bold text-zinc-900">Offline Mode</h3>
+                    <p className="text-sm text-zinc-500 text-balance">
+                        Cloud sync is currently disabled (Database not configured). 
+                        You can still use the app with local storage.
+                    </p>
+                </div>
+                
+                <Button onClick={handleGuest} isLoading={isLoading}>
+                    Start App (Offline)
+                </Button>
+            </div>
+            
+             <p className="mt-8 text-xs text-center text-zinc-400">
+                Data will be saved to this device only.
+            </p>
+        </div>
+     );
+  }
+
+  // RENDER: ONLINE MODE (Firebase Active)
   return (
     <div className="min-h-screen flex flex-col justify-center p-6 bg-zinc-50">
       <div className="text-center space-y-6 animate-fade-in mb-8">
@@ -123,14 +170,13 @@ export const Login: React.FC = () => {
           className="w-full p-4 bg-white border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm"
         />
         
-        <Button isLoading={isLoading} type="submit" className="mt-2" disabled={!auth}>
+        <Button isLoading={isLoading} type="submit" className="mt-2">
           {isSignUp ? "Create Account" : "Sign In"}
         </Button>
-        {!auth && <p className="text-xs text-center text-amber-600">Online services unavailable. Please use Guest Mode.</p>}
       </form>
 
       <div className="mt-4 grid grid-cols-1 gap-3">
-         <Button variant="secondary" onClick={() => { setIsSignUp(!isSignUp); setError(null); }} disabled={!auth}>
+         <Button variant="secondary" onClick={() => { setIsSignUp(!isSignUp); setError(null); }}>
             {isSignUp ? "Switch to Sign In" : "Create Account"}
          </Button>
       </div>

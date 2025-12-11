@@ -3,6 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Button } from '../components/Button';
 
+// Declare Razorpay on window
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
+
 export const Premium: React.FC = () => {
   const { user, setUser } = useApp();
   const navigate = useNavigate();
@@ -10,14 +17,64 @@ export const Premium: React.FC = () => {
 
   const handleUpgrade = async () => {
     setIsLoading(true);
-    // Simulate API call for upgrade
-    await new Promise(resolve => setTimeout(resolve, 1500));
     
-    if (user) {
-        const updatedUser = { ...user, isPremium: true };
-        await setUser(updatedUser);
-        navigate('/profile');
-    } else {
+    const key = process.env.RAZORPAY_KEY_ID;
+
+    if (!key) {
+        alert("Configuration Error: RAZORPAY_KEY_ID is missing in environment variables.");
+        setIsLoading(false);
+        return;
+    }
+
+    const options = {
+        key: key,
+        amount: 4900, // Amount is in currency subunits. Default currency is INR. Hence, 4900 refers to 4900 paise
+        currency: "INR",
+        name: "Dr Foodie Premium",
+        description: "Monthly Subscription (Auto-Pay)",
+        image: "https://www.foodieqr.com/assets/img/og_img.png",
+        handler: async function (response: any) {
+            // Success Callback
+            // In a real app, you would verify signature on backend here.
+            // For now, we trust the success and upgrade the user.
+            if (response.razorpay_payment_id) {
+                if (user) {
+                    const updatedUser = { ...user, isPremium: true };
+                    await setUser(updatedUser);
+                    navigate('/profile');
+                }
+            }
+            setIsLoading(false);
+        },
+        prefill: {
+            name: user?.name || "",
+            // email: "user@example.com", 
+            // contact: "9999999999"
+        },
+        notes: {
+            address: "Dr Foodie App"
+        },
+        theme: {
+            color: "#18181b"
+        },
+        modal: {
+            ondismiss: function() {
+                setIsLoading(false);
+            }
+        }
+    };
+
+    try {
+        const rzp1 = new window.Razorpay(options);
+        rzp1.open();
+        
+        rzp1.on('payment.failed', function (response: any){
+            alert("Payment Failed: " + response.error.description);
+            setIsLoading(false);
+        });
+    } catch (e) {
+        console.error("Razorpay Error:", e);
+        alert("Failed to initiate payment. Please try again.");
         setIsLoading(false);
     }
   };
@@ -79,12 +136,12 @@ export const Premium: React.FC = () => {
                  <span className="text-xs bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded uppercase">Auto-Pay</span>
                </div>
                <div className="flex items-baseline gap-1">
-                  <span className="block text-3xl font-bold text-zinc-900 tracking-tight">$9.99</span>
+                  <span className="block text-3xl font-bold text-zinc-900 tracking-tight">₹49</span>
                   <span className="text-sm text-zinc-500 font-medium">/ month</span>
                </div>
             </div>
             <Button onClick={handleUpgrade} isLoading={isLoading} className="!w-auto px-8 bg-zinc-900 text-white shadow-xl shadow-zinc-300 hover:shadow-zinc-400 hover:scale-105">
-               Subscribe (Demo)
+               Subscribe
             </Button>
          </div>
       </div>

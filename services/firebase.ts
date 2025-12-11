@@ -2,16 +2,8 @@ import { initializeApp } from "firebase/app";
 import { getAuth, Auth } from "firebase/auth";
 import { getFirestore, Firestore } from "firebase/firestore";
 
-// Safe environment variable accessor
-const getEnv = (key: string) => {
-  try {
-    return typeof process !== 'undefined' ? process.env[key] : '';
-  } catch (e) {
-    return '';
-  }
-};
-
-const apiKey = getEnv('FIREBASE_API_KEY');
+// Access process.env.FIREBASE_API_KEY directly so Vite's define plugin can replace it with the string value.
+const apiKey = process.env.FIREBASE_API_KEY;
 
 const firebaseConfig = {
     apiKey: apiKey,
@@ -28,7 +20,7 @@ let auth: Auth | undefined;
 let db: Firestore | undefined;
 
 // Only initialize if we have a valid-looking key
-if (apiKey && !apiKey.includes("PLACEHOLDER") && !apiKey.includes("YOUR_FIREBASE")) {
+if (apiKey && !apiKey.includes("PLACEHOLDER") && !apiKey.includes("YOUR_FIREBASE") && apiKey !== "") {
     try {
         app = initializeApp(firebaseConfig);
         auth = getAuth(app);

@@ -3,23 +3,15 @@ import { UserProfile, NutritionAnalysis } from "../types";
 
 let genAI: GoogleGenAI | null = null;
 
-const getEnv = (key: string) => {
-  try {
-    // Vite replaces process.env.KEY during build, but we add a safety check
-    return typeof process !== 'undefined' ? process.env[key] : '';
-  } catch (e) {
-    return '';
-  }
-};
-
 const getGenAI = () => {
   if (!genAI) {
-    const apiKey = getEnv('API_KEY');
+    // Access process.env.API_KEY directly so Vite's define plugin can replace it with the string value.
+    const apiKey = process.env.API_KEY;
     
     // Explicitly check if the key is missing or is a placeholder
     if (!apiKey || apiKey.includes("PLACEHOLDER") || apiKey === "") {
-        console.warn("[GeminiService] API Key is missing. Features relying on AI will fail gracefully.");
-        throw new Error("API_KEY is missing. Please check your environment variables.");
+        console.warn("[GeminiService] API Key is missing.");
+        throw new Error("API_KEY is missing. Please check your environment variables in Netlify/Vercel.");
     }
     
     genAI = new GoogleGenAI({ apiKey: apiKey });
