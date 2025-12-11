@@ -10,8 +10,7 @@ export const Profile: React.FC = () => {
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   
-  // Initialize state safely with defaults. 
-  // Hooks must run unconditionally, so we use optional chaining and defaults here.
+  // Initialize state safely. Hooks must execute unconditionally.
   const [formData, setFormData] = useState({
     name: user?.name || '',
     age: user?.age || 30,
@@ -22,7 +21,7 @@ export const Profile: React.FC = () => {
     gender: user?.gender || Gender.MALE
   });
 
-  // Sync state if user updates (e.g. after premium upgrade)
+  // Sync state if user context updates (e.g. initial load or remote sync)
   useEffect(() => {
     if (user) {
       setFormData(prev => ({
@@ -38,7 +37,7 @@ export const Profile: React.FC = () => {
     }
   }, [user]);
 
-  // Safe to return null here after hooks are initialized
+  // Conditional return must be AFTER all hooks
   if (!user) return null;
 
   const handleSave = () => {

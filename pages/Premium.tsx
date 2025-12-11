@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Button } from '../components/Button';
 
-// Declare Razorpay on window
+// Declare Razorpay on window for TypeScript
 declare global {
   interface Window {
     Razorpay: any;
@@ -26,7 +26,7 @@ export const Premium: React.FC = () => {
   };
 
   const simulatePremiumUpgrade = async () => {
-    // Mock payment delay
+    // Mock payment delay for demonstration or fallback
     await new Promise(resolve => setTimeout(resolve, 2000));
     await activatePremium();
   };
@@ -34,18 +34,17 @@ export const Premium: React.FC = () => {
   const handleUpgrade = async () => {
     setIsLoading(true);
 
-    // Check if Razorpay is loaded via script tag
+    // Check if Razorpay is loaded via script tag in index.html
     if (window.Razorpay) {
       try {
         const options = {
-          key: "rzp_test_1DP5mmOlF5G5ag", // Common test key for demo purposes
-          amount: 999, // Amount in lowest denomination (paise for INR, cents for USD)
+          key: "rzp_test_1DP5mmOlF5G5ag", // Test Key
+          amount: 999, // 9.99 USD in cents (or approx in currency units)
           currency: "USD",
           name: "Dr Foodie",
           description: "Premium Upgrade",
           image: "https://www.foodieqr.com/assets/img/og_img.png",
           handler: async function (response: any) {
-            // Payment Success
             console.log("Payment Success:", response);
             await activatePremium();
           },
@@ -67,17 +66,18 @@ export const Premium: React.FC = () => {
         const rzp = new window.Razorpay(options);
         rzp.on('payment.failed', function (response: any){
             console.error(response.error);
-            alert("Payment failed. Please try again or check console.");
+            alert("Payment failed. Please try again.");
             setIsLoading(false);
         });
         rzp.open();
       } catch (error) {
-        console.error("Razorpay Error:", error);
-        // Fallback to simulation if initialization fails
+        console.error("Razorpay Initialization Error:", error);
+        // Fallback to simulation if initialization fails (e.g. network blocker)
         await simulatePremiumUpgrade();
       }
     } else {
       // Fallback if script not loaded
+      console.warn("Razorpay script not found. Using simulation.");
       await simulatePremiumUpgrade();
     }
   };

@@ -1,21 +1,19 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { UserProfile, NutritionAnalysis, VerdictStatus } from "../types";
+import { UserProfile, NutritionAnalysis } from "../types";
 
 let genAI: GoogleGenAI | null = null;
 
 const getGenAI = () => {
   if (!genAI) {
-    // The Vite 'define' plugin replaces process.env.API_KEY with the actual string value
     const apiKey = process.env.API_KEY;
     
-    // Debug log to console to verify key presence in production
-    console.log("[GeminiService] Initializing. API Key configured:", !!apiKey);
-
-    if (!apiKey) {
-        console.warn("[GeminiService] API Key is missing. Calls will fail.");
+    // Explicitly check if the key is missing or is a placeholder
+    if (!apiKey || apiKey.includes("PLACEHOLDER") || apiKey === "") {
+        console.error("[GeminiService] API Key is missing or invalid.");
+        // We still instantiate to allow the app to run until the call is made, 
+        // where we can catch the specific error.
     }
     
-    // Initialize the SDK. Pass empty string if missing to avoid immediate crash.
     genAI = new GoogleGenAI({ apiKey: apiKey || "" });
   }
   return genAI;
@@ -48,6 +46,7 @@ export const generateFoodImage = async (textInput: string): Promise<string | nul
     return null;
   } catch (error) {
     console.error("Gemini Image Gen Error:", error);
+    // Don't throw for image generation failure, just return null
     return null;
   }
 };
@@ -152,8 +151,13 @@ export const analyzeMealWithGemini = async (
     const text = response.text;
     if (!text) throw new Error("No data returned from AI");
     
-    const data = JSON.parse(text) as NutritionAnalysis;
-    return data;
+    try {
+        const data = JSON.parse(text) as NutritionAnalysis;
+        return data;
+    } catch (parseError) {
+        console.error("JSON Parse Error:", parseError);
+        throw new Error("Failed to parse AI response. Please try again.");
+    }
 
   } catch (error) {
     console.error("Gemini Analysis Error:", error);
