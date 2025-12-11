@@ -5,22 +5,22 @@ export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
   const env = loadEnv(mode, (process as any).cwd(), '');
   
-  // Prioritize the system environment variable (Netlify) over the .env file
-  const apiKey = process.env.API_KEY || env.API_KEY || "";
-  const firebaseApiKey = process.env.FIREBASE_API_KEY || env.FIREBASE_API_KEY || "";
-  const razorpayKey = process.env.RAZORPAY_KEY_ID || env.RAZORPAY_KEY_ID || "";
+  // Fetch keys from Netlify environment (process.env) or local .env
+  const rawApiKey = process.env.API_KEY || env.API_KEY || "";
+  const rawFirebaseKey = process.env.FIREBASE_API_KEY || env.FIREBASE_API_KEY || "";
+  const rawRazorpayKey = process.env.RAZORPAY_KEY_ID || env.RAZORPAY_KEY_ID || "";
 
-  // Helper to Base64 encode
+  // Helper to Base64 encode to prevent raw secrets from appearing in the build output
   const encode = (str: string) => Buffer.from(str).toString('base64');
 
   return {
     plugins: [react()],
     define: {
-      // Inject Base64 encoded keys as global constants.
-      // This prevents the raw string "AIza..." from ever entering the bundle.
-      '__GEMINI_KEY__': JSON.stringify(encode(apiKey)),
-      '__FIREBASE_KEY__': JSON.stringify(encode(firebaseApiKey)),
-      '__RAZORPAY_KEY__': JSON.stringify(razorpayKey), // Razorpay key is public, usually safe, but we'll use this pattern for consistency
+      // Replace process.env.VARIABLE in client code with the ENCODED string value.
+      // This ensures the actual "AIza..." string never exists in the dist/ files.
+      'process.env.API_KEY': JSON.stringify(encode(rawApiKey)),
+      'process.env.FIREBASE_API_KEY': JSON.stringify(encode(rawFirebaseKey)),
+      'process.env.RAZORPAY_KEY_ID': JSON.stringify(encode(rawRazorpayKey)),
     },
     build: {
       outDir: 'dist',

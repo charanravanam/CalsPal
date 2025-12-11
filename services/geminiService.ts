@@ -1,25 +1,24 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { UserProfile, NutritionAnalysis } from "../types";
 
-// Declare the global constant defined in vite.config.ts
-declare const __GEMINI_KEY__: string;
-
 let genAI: GoogleGenAI | null = null;
 
 const getGenAI = () => {
   if (!genAI) {
-    // Decode the Base64 encoded key from the global constant
+    // The build process injects a Base64 encoded string into process.env.API_KEY.
+    // We must decode it at runtime.
     let apiKey = "";
     try {
-        apiKey = atob(__GEMINI_KEY__);
+        // Use standard 'atob' to decode Base64 in the browser
+        apiKey = atob(process.env.API_KEY || "");
     } catch (e) {
         console.error("Failed to decode API Key");
     }
     
-    // Explicitly check if the key is missing
+    // Explicitly check if the key is missing or is a placeholder
     if (!apiKey || apiKey.includes("PLACEHOLDER") || apiKey === "") {
         console.warn("[GeminiService] API Key is missing.");
-        throw new Error("API_KEY is missing. Please check your environment variables.");
+        throw new Error("API_KEY is missing. Please check your environment variables in Netlify/Vercel.");
     }
     
     genAI = new GoogleGenAI({ apiKey: apiKey });
