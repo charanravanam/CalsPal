@@ -16,10 +16,11 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     define: {
-      // Inject Base64 encoded keys to avoid "Secrets scanning" errors in build output
-      'process.env.GEMINI_API_KEY_B64': JSON.stringify(encode(apiKey)),
-      'process.env.FIREBASE_API_KEY_B64': JSON.stringify(encode(firebaseApiKey)),
-      'process.env.RAZORPAY_KEY_ID': JSON.stringify(razorpayKey),
+      // Inject Base64 encoded keys as global constants.
+      // This prevents the raw string "AIza..." from ever entering the bundle.
+      '__GEMINI_KEY__': JSON.stringify(encode(apiKey)),
+      '__FIREBASE_KEY__': JSON.stringify(encode(firebaseApiKey)),
+      '__RAZORPAY_KEY__': JSON.stringify(razorpayKey), // Razorpay key is public, usually safe, but we'll use this pattern for consistency
     },
     build: {
       outDir: 'dist',

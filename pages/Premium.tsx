@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Button } from '../components/Button';
 
-// Declare Razorpay on window
+// Declare Razorpay on window and our global constant
 declare global {
   interface Window {
     Razorpay: any;
   }
 }
+declare const __RAZORPAY_KEY__: string;
 
 export const Premium: React.FC = () => {
   const { user, setUser } = useApp();
@@ -18,7 +19,8 @@ export const Premium: React.FC = () => {
   const handleUpgrade = async () => {
     setIsLoading(true);
     
-    const key = process.env.RAZORPAY_KEY_ID;
+    // Use global constant injected by Vite
+    const key = __RAZORPAY_KEY__;
 
     if (!key) {
         alert("Configuration Error: RAZORPAY_KEY_ID is missing in environment variables.");
