@@ -16,7 +16,7 @@ export const Profile: React.FC = () => {
     age: user?.age || 30,
     height: user?.height || 170,
     weight: user?.weight || 70,
-    goal: user?.goal || Goal.MAINTAIN,
+    goal: user?.goal || [Goal.MAINTAIN],
     activityLevel: user?.activityLevel || ActivityLevel.MODERATE,
     gender: user?.gender || Gender.MALE
   });
@@ -40,6 +40,18 @@ export const Profile: React.FC = () => {
   // Conditional return must be AFTER all hooks
   if (!user) return null;
 
+  const toggleGoal = (g: Goal) => {
+    if (!isEditing) return;
+    const current = formData.goal || [];
+    if (current.includes(g)) {
+        if (current.length > 1) {
+            setFormData({ ...formData, goal: current.filter(item => item !== g) });
+        }
+    } else {
+        setFormData({ ...formData, goal: [...current, g] });
+    }
+  };
+
   const handleSave = () => {
     // Recalculate TDEE on save
     let bmr = 0;
@@ -58,8 +70,10 @@ export const Profile: React.FC = () => {
     }
     
     let tdee = Math.round(bmr * multiplier);
-    if (formData.goal === Goal.LOSE) tdee -= 500;
-    if (formData.goal === Goal.GAIN) tdee += 300;
+    
+    // Multi-goal calc
+    if (formData.goal.includes(Goal.LOSE)) tdee -= 500;
+    if (formData.goal.includes(Goal.GAIN)) tdee += 300;
 
     setUser({
       ...user,
@@ -97,8 +111,9 @@ export const Profile: React.FC = () => {
           <div>
             <p className="text-sm font-medium opacity-70 uppercase tracking-wide">Current Plan</p>
             <h2 className={`text-xl font-bold ${user.isPremium ? 'text-amber-900' : 'text-zinc-900'}`}>
-              {user.isPremium ? 'Premium Member 🌟' : 'Free Plan'}
+              {user.isPremium ? 'Premium Subscription 🌟' : 'Free Plan'}
             </h2>
+            {user.isPremium && <span className="text-[10px] uppercase font-bold bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded">Monthly</span>}
           </div>
           {!user.isPremium && (
             <Button className="!w-auto py-2 px-4 text-xs" onClick={() => navigate('/premium')}>Upgrade</Button>
@@ -205,15 +220,22 @@ export const Profile: React.FC = () => {
           </div>
 
            <div className="space-y-1">
-              <label className="text-xs text-zinc-500 uppercase">Goal</label>
-              <select 
-                disabled={!isEditing}
-                value={formData.goal}
-                onChange={e => setFormData({...formData, goal: e.target.value as Goal})}
-                className="w-full bg-zinc-50 p-3 rounded-lg border border-zinc-200 disabled:opacity-70"
-              >
-                {Object.values(Goal).map(g => <option key={g} value={g}>{g}</option>)}
-              </select>
+              <label className="text-xs text-zinc-500 uppercase">Goals</label>
+              <div className="flex flex-wrap gap-2">
+                 {Object.values(Goal).map(g => {
+                     const isSelected = formData.goal.includes(g);
+                     return (
+                         <button
+                            key={g}
+                            disabled={!isEditing}
+                            onClick={() => toggleGoal(g)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${isSelected ? 'bg-zinc-900 text-white border-zinc-900' : 'bg-white text-zinc-500 border-zinc-200'} ${!isEditing ? 'opacity-70 cursor-not-allowed' : ''}`}
+                         >
+                            {g}
+                         </button>
+                     )
+                 })}
+              </div>
             </div>
             
             <div className="p-3 bg-zinc-100 rounded-lg text-xs text-zinc-500">
@@ -226,7 +248,7 @@ export const Profile: React.FC = () => {
       <Button variant="danger" onClick={handleLogout} className="mt-8">Log Out</Button>
       
       <div className="text-center text-xs text-zinc-400 pt-4 pb-8">
-        App Version 1.0.3
+        App Version 1.0.4
       </div>
     </div>
   );

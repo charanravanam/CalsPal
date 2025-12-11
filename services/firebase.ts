@@ -1,9 +1,20 @@
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { getAuth, Auth } from "firebase/auth";
+import { getFirestore, Firestore } from "firebase/firestore";
+
+// Safe environment variable accessor
+const getEnv = (key: string) => {
+  try {
+    return typeof process !== 'undefined' ? process.env[key] : '';
+  } catch (e) {
+    return '';
+  }
+};
+
+const apiKey = getEnv('FIREBASE_API_KEY');
 
 const firebaseConfig = {
-    apiKey: process.env.FIREBASE_API_KEY,
+    apiKey: apiKey,
     authDomain: "dr-foodie-bc477.firebaseapp.com",
     projectId: "dr-foodie-bc477",
     storageBucket: "dr-foodie-bc477.firebasestorage.app",
@@ -13,15 +24,21 @@ const firebaseConfig = {
 };
 
 let app;
-let auth;
-let db;
+let auth: Auth | undefined;
+let db: Firestore | undefined;
 
-try {
-    app = initializeApp(firebaseConfig);
-    auth = getAuth(app);
-    db = getFirestore(app);
-} catch (e) {
-    console.error("Firebase Initialization Error:", e);
+// Only initialize if we have a valid-looking key
+if (apiKey && !apiKey.includes("PLACEHOLDER") && !apiKey.includes("YOUR_FIREBASE")) {
+    try {
+        app = initializeApp(firebaseConfig);
+        auth = getAuth(app);
+        db = getFirestore(app);
+        console.log("Firebase initialized successfully");
+    } catch (e) {
+        console.warn("Firebase initialization failed (App will run in offline mode):", e);
+    }
+} else {
+    console.warn("Firebase API Key missing. App running in offline mode.");
 }
 
 export { auth, db };

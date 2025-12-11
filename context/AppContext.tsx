@@ -6,9 +6,9 @@ import { onAuthStateChanged } from "firebase/auth";
 
 interface AppContextType {
   user: UserProfile | null;
-  setUser: (user: UserProfile | null) => void;
+  setUser: (user: UserProfile | null) => Promise<void>;
   meals: MealLog[];
-  addMeal: (meal: MealLog) => void;
+  addMeal: (meal: MealLog) => Promise<void>;
   getDailyCalories: () => number;
   isLoading: boolean;
   syncWithFirebase: (uid: string) => Promise<boolean>;
@@ -33,22 +33,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setMeals(JSON.parse(savedMeals));
     }
     
-    // Setup Auth Listener
+    // Setup Auth Listener if auth is available
     if (auth) {
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
             if (firebaseUser) {
                 // User is signed in.
-                const localUser = localStorage.getItem('ni_user');
-                if (!localUser) {
+                // If we don't have local data, try to sync
+                if (!savedUser) {
                     await syncWithFirebase(firebaseUser.uid);
                 }
-            } else {
-                // User is signed out.
             }
             setIsLoading(false);
         });
         return () => unsubscribe();
     } else {
+        // No auth service, just finish loading
         setIsLoading(false);
     }
   }, []);
@@ -109,7 +108,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setUserState(newUser);
       localStorage.setItem('ni_user', JSON.stringify(newUser));
 
-      // Sync to Firebase if logged in
+      // Sync to Firebase if logged in and db is available
       if (auth?.currentUser && db) {
         try {
           // Remove undefined values for Firestore
@@ -121,7 +120,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } else {
       // Logout logic
       localStorage.removeItem('ni_user');
-      localStorage.removeItem('ni_meals'); // Also clear meals on logout
+      localStorage.removeItem('ni_meals');
       setMeals([]);
       setUserState(null);
       if (auth) {
@@ -135,10 +134,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setMeals(updatedMeals);
     localStorage.setItem('ni_meals', JSON.stringify(updatedMeals));
 
-    // Sync to Firebase if logged in
+    // Sync to Firebase if logged in and db is available
     if (auth?.currentUser && db) {
       try {
-        // Remove undefined values for Firestore (e.g. imageUri)
         const firestoreMeal = JSON.parse(JSON.stringify(meal));
         await setDoc(doc(db, "users", auth.currentUser.uid, "meals", meal.id), firestoreMeal);
       } catch (e) { console.error("Error saving meal to DB:", e); }
@@ -149,7 +147,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const today = new Date().setHours(0, 0, 0, 0);
     return meals
       .filter(m => new Date(m.timestamp).setHours(0, 0, 0, 0) === today)
-      .reduce((acc, curr) => acc + curr.analysis.calories, 0);
+      .reduce((acc, curr) => acc + (curr.analysis.calories || 0), 0);
   };
 
   return (

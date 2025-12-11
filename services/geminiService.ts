@@ -3,18 +3,25 @@ import { UserProfile, NutritionAnalysis } from "../types";
 
 let genAI: GoogleGenAI | null = null;
 
+const getEnv = (key: string) => {
+  try {
+    return typeof process !== 'undefined' ? process.env[key] : '';
+  } catch (e) {
+    return '';
+  }
+};
+
 const getGenAI = () => {
   if (!genAI) {
-    const apiKey = process.env.API_KEY;
+    const apiKey = getEnv('API_KEY');
     
     // Explicitly check if the key is missing or is a placeholder
     if (!apiKey || apiKey.includes("PLACEHOLDER") || apiKey === "") {
         console.error("[GeminiService] API Key is missing or invalid.");
-        // We still instantiate to allow the app to run until the call is made, 
-        // where we can catch the specific error.
+        throw new Error("API_KEY is missing. Please check your environment variables.");
     }
     
-    genAI = new GoogleGenAI({ apiKey: apiKey || "" });
+    genAI = new GoogleGenAI({ apiKey: apiKey });
   }
   return genAI;
 };
@@ -25,10 +32,10 @@ const cleanBase64 = (base64: string) => {
 };
 
 export const generateFoodImage = async (textInput: string): Promise<string | null> => {
-  const ai = getGenAI();
-  const modelId = "gemini-2.5-flash-image";
-
   try {
+    const ai = getGenAI();
+    const modelId = "gemini-2.5-flash-image";
+
     const response = await ai.models.generateContent({
       model: modelId,
       contents: {
@@ -45,8 +52,7 @@ export const generateFoodImage = async (textInput: string): Promise<string | nul
     }
     return null;
   } catch (error) {
-    console.error("Gemini Image Gen Error:", error);
-    // Don't throw for image generation failure, just return null
+    console.warn("Gemini Image Gen Error (Non-fatal):", error);
     return null;
   }
 };
@@ -57,43 +63,45 @@ export const analyzeMealWithGemini = async (
   userProfile: UserProfile
 ): Promise<NutritionAnalysis> => {
   
-  const ai = getGenAI();
-  const modelId = "gemini-2.5-flash"; 
-
-  const prompt = `
-    Analyze this meal log for a user with the following profile:
-    - Goal: ${userProfile.goal}
-    - Daily Target: ${userProfile.dailyCalorieTarget} calories
-    
-    Provide a professional nutrition brief.
-    
-    Requirements:
-    1. Estimate calories and macros.
-    2. Calculate burn time specifically for a "brisk walk". Format example: "24 min brisk walk".
-    3. Choose ONE primary verdict from this list: "Needed for Body", "Not Needed for Body", "Dangerous for Body", "Useless for Body", "High Calorie Count", "Very Unhealthy", "High Chemicals".
-    4. Provide structured guidance on portion and frequency.
-    5. Identify specific risks or allergens.
-    6. Write a "Goal Alignment" sentence explaining how this meal fits their specific goal (e.g., "High impact for weight loss").
-    
-    Return pure JSON matching the schema.
-  `;
-
-  const parts: any[] = [{ text: prompt }];
-
-  if (textInput) {
-    parts.push({ text: `Food description: ${textInput}` });
-  }
-
-  if (imageBase64) {
-    parts.push({
-      inlineData: {
-        mimeType: "image/jpeg",
-        data: cleanBase64(imageBase64),
-      },
-    });
-  }
-
   try {
+    const ai = getGenAI();
+    const modelId = "gemini-2.5-flash"; 
+    
+    const userGoals = Array.isArray(userProfile.goal) ? userProfile.goal.join(", ") : userProfile.goal;
+
+    const prompt = `
+      Analyze this meal log for a user with the following profile:
+      - Goal: ${userGoals}
+      - Daily Target: ${userProfile.dailyCalorieTarget} calories
+      
+      Provide a professional nutrition brief.
+      
+      Requirements:
+      1. Estimate calories and macros.
+      2. Calculate burn time specifically for a "brisk walk". Format example: "24 min brisk walk".
+      3. Choose ONE primary verdict from this list: "Needed for Body", "Not Needed for Body", "Dangerous for Body", "Useless for Body", "High Calorie Count", "Very Unhealthy", "High Chemicals".
+      4. Provide structured guidance on portion and frequency.
+      5. Identify specific risks or allergens.
+      6. Write a "Goal Alignment" sentence explaining how this meal fits their specific goal.
+      
+      Return pure JSON matching the schema.
+    `;
+
+    const parts: any[] = [{ text: prompt }];
+
+    if (textInput) {
+      parts.push({ text: `Food description: ${textInput}` });
+    }
+
+    if (imageBase64) {
+      parts.push({
+        inlineData: {
+          mimeType: "image/jpeg",
+          data: cleanBase64(imageBase64),
+        },
+      });
+    }
+
     const response = await ai.models.generateContent({
       model: modelId,
       contents: {

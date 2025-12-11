@@ -3,82 +3,22 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Button } from '../components/Button';
 
-// Declare Razorpay on window for TypeScript
-declare global {
-  interface Window {
-    Razorpay: any;
-  }
-}
-
 export const Premium: React.FC = () => {
   const { user, setUser } = useApp();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
 
-  const activatePremium = async () => {
-      if (user) {
-          const updatedUser = { ...user, isPremium: true };
-          await setUser(updatedUser);
-          navigate('/profile');
-      } else {
-        setIsLoading(false);
-      }
-  };
-
-  const simulatePremiumUpgrade = async () => {
-    // Mock payment delay for demonstration or fallback
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    await activatePremium();
-  };
-
   const handleUpgrade = async () => {
     setIsLoading(true);
-
-    // Check if Razorpay is loaded via script tag in index.html
-    if (window.Razorpay) {
-      try {
-        const options = {
-          key: "rzp_test_1DP5mmOlF5G5ag", // Test Key
-          amount: 999, // 9.99 USD in cents (or approx in currency units)
-          currency: "USD",
-          name: "Dr Foodie",
-          description: "Premium Upgrade",
-          image: "https://www.foodieqr.com/assets/img/og_img.png",
-          handler: async function (response: any) {
-            console.log("Payment Success:", response);
-            await activatePremium();
-          },
-          prefill: {
-            name: user?.name || "Dr Foodie User",
-            email: "user@example.com",
-            contact: "9999999999"
-          },
-          theme: {
-            color: "#f59e0b"
-          },
-          modal: {
-            ondismiss: function() {
-              setIsLoading(false);
-            }
-          }
-        };
-        
-        const rzp = new window.Razorpay(options);
-        rzp.on('payment.failed', function (response: any){
-            console.error(response.error);
-            alert("Payment failed. Please try again.");
-            setIsLoading(false);
-        });
-        rzp.open();
-      } catch (error) {
-        console.error("Razorpay Initialization Error:", error);
-        // Fallback to simulation if initialization fails (e.g. network blocker)
-        await simulatePremiumUpgrade();
-      }
+    // Simulate API call for upgrade
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    if (user) {
+        const updatedUser = { ...user, isPremium: true };
+        await setUser(updatedUser);
+        navigate('/profile');
     } else {
-      // Fallback if script not loaded
-      console.warn("Razorpay script not found. Using simulation.");
-      await simulatePremiumUpgrade();
+        setIsLoading(false);
     }
   };
 
@@ -131,15 +71,20 @@ export const Premium: React.FC = () => {
         </div>
       </div>
 
-      {/* Footer Action */}
+      {/* Footer Action - Monthly Subscription */}
       <div className="fixed bottom-0 left-0 w-full p-6 bg-white border-t border-zinc-200 z-50 pb-8">
          <div className="max-w-md mx-auto flex items-center gap-6">
             <div className="flex-1">
-               <span className="block text-xs text-zinc-400 uppercase font-medium">One-time payment</span>
-               <span className="block text-3xl font-bold text-zinc-900 tracking-tight">$9.99</span>
+               <div className="flex items-center gap-2">
+                 <span className="text-xs bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded uppercase">Auto-Pay</span>
+               </div>
+               <div className="flex items-baseline gap-1">
+                  <span className="block text-3xl font-bold text-zinc-900 tracking-tight">$9.99</span>
+                  <span className="text-sm text-zinc-500 font-medium">/ month</span>
+               </div>
             </div>
             <Button onClick={handleUpgrade} isLoading={isLoading} className="!w-auto px-8 bg-zinc-900 text-white shadow-xl shadow-zinc-300 hover:shadow-zinc-400 hover:scale-105">
-               Upgrade
+               Subscribe (Demo)
             </Button>
          </div>
       </div>

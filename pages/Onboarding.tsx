@@ -16,11 +16,23 @@ export const Onboarding: React.FC = () => {
     weight: user?.weight || 70,
     gender: user?.gender || Gender.MALE,
     activityLevel: user?.activityLevel || ActivityLevel.MODERATE,
-    goal: user?.goal || Goal.MAINTAIN,
+    goal: user?.goal || [Goal.MAINTAIN], // Initialize as array
   });
 
   const handleNext = () => setStep(s => s + 1);
   const handleBack = () => setStep(s => s - 1);
+
+  const toggleGoal = (selectedGoal: Goal) => {
+    const currentGoals = formData.goal || [];
+    if (currentGoals.includes(selectedGoal)) {
+      // Don't allow empty goals, keep at least one
+      if (currentGoals.length > 1) {
+        setFormData({ ...formData, goal: currentGoals.filter(g => g !== selectedGoal) });
+      }
+    } else {
+      setFormData({ ...formData, goal: [...currentGoals, selectedGoal] });
+    }
+  };
 
   const calculateTDEE = (data: Partial<UserProfile>) => {
     // Harris-Benedict Equation
@@ -41,9 +53,14 @@ export const Onboarding: React.FC = () => {
 
     let tdee = bmr * multiplier;
 
-    // Goal adjustment
-    if (data.goal === Goal.LOSE) tdee -= 500;
-    if (data.goal === Goal.GAIN) tdee += 300;
+    // Multi-Goal adjustment logic
+    // We sum up the adjustments.
+    // Example: Lose (-500) + Build Muscle (+250) = Net -250 (Recomposition)
+    if (data.goal) {
+        if (data.goal.includes(Goal.LOSE)) tdee -= 500;
+        if (data.goal.includes(Goal.GAIN)) tdee += 300;
+        // Maintain adds 0
+    }
 
     return Math.round(tdee);
   };
@@ -55,7 +72,6 @@ export const Onboarding: React.FC = () => {
       dailyCalorieTarget: dailyTarget,
       onboardingComplete: true
     };
-    // setUser now handles Firestore sync if user is logged in
     await setUser(finalProfile);
     navigate('/dashboard');
   };
@@ -67,7 +83,7 @@ export const Onboarding: React.FC = () => {
           <p className="text-zinc-400 text-sm font-medium tracking-widest uppercase">Step {step} of 3</p>
           <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">
             {step === 1 && "Tell us about yourself."}
-            {step === 2 && "What is your main goal?"}
+            {step === 2 && "What are your goals?"}
             {step === 3 && "Let's check the numbers."}
           </h1>
         </div>
@@ -113,20 +129,27 @@ export const Onboarding: React.FC = () => {
 
         {step === 2 && (
           <div className="space-y-4">
-            {Object.values(Goal).map((g) => (
-              <button
-                key={g}
-                onClick={() => setFormData({...formData, goal: g})}
-                className={`w-full p-6 text-left rounded-2xl border-2 transition-all ${formData.goal === g ? 'border-zinc-900 bg-zinc-50' : 'border-zinc-100 bg-white hover:border-zinc-200'}`}
-              >
-                <span className="text-lg font-semibold block">{g}</span>
-                <span className="text-sm text-zinc-500">
-                  {g === Goal.LOSE && "Focus on deficit and nutrient density."}
-                  {g === Goal.MAINTAIN && "Balanced approach for sustainable health."}
-                  {g === Goal.GAIN && "Surplus calories with protein priority."}
-                </span>
-              </button>
-            ))}
+            <p className="text-sm text-zinc-500 mb-2">You can select multiple goals.</p>
+            {Object.values(Goal).map((g) => {
+              const isSelected = formData.goal?.includes(g);
+              return (
+                <button
+                  key={g}
+                  onClick={() => toggleGoal(g)}
+                  className={`w-full p-6 text-left rounded-2xl border-2 transition-all relative ${isSelected ? 'border-zinc-900 bg-zinc-50' : 'border-zinc-100 bg-white hover:border-zinc-200'}`}
+                >
+                  <div className="flex justify-between items-center">
+                    <span className="text-lg font-semibold block">{g}</span>
+                    {isSelected && <span className="text-zinc-900 text-xl">✓</span>}
+                  </div>
+                  <span className="text-sm text-zinc-500">
+                    {g === Goal.LOSE && "Focus on deficit and nutrient density."}
+                    {g === Goal.MAINTAIN && "Balanced approach for sustainable health."}
+                    {g === Goal.GAIN && "Surplus calories with protein priority."}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         )}
 
@@ -138,9 +161,14 @@ export const Onboarding: React.FC = () => {
                 {calculateTDEE(formData)}
                 <span className="text-lg font-normal text-zinc-400 ml-2">kcal</span>
              </div>
-             <p className="text-zinc-500 leading-relaxed text-sm">
-                Based on your profile, this target will help you achieve your goal of <strong>{formData.goal}</strong>.
-             </p>
+             <div className="text-zinc-500 leading-relaxed text-sm">
+                Based on your profile, this target will help you achieve:
+                <div className="flex flex-wrap justify-center gap-2 mt-2">
+                   {formData.goal?.map(g => (
+                      <span key={g} className="px-2 py-1 bg-zinc-100 rounded-md text-xs font-bold text-zinc-700 uppercase">{g}</span>
+                   ))}
+                </div>
+             </div>
           </div>
         )}
       </div>

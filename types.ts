@@ -43,7 +43,7 @@ export interface UserProfile {
   weight: number; // kg
   gender: Gender;
   activityLevel: ActivityLevel;
-  goal: Goal;
+  goal: Goal[]; // Changed to Array
   dailyCalorieTarget: number;
   onboardingComplete: boolean;
   isPremium?: boolean;

@@ -33,6 +33,11 @@ export const Login: React.FC = () => {
       setError("Please enter both email and password.");
       return;
     }
+
+    if (!auth) {
+        setError("Authentication service is unavailable. Please use Guest Mode.");
+        return;
+    }
     
     setError(null);
     setIsLoading(true);
@@ -68,14 +73,15 @@ export const Login: React.FC = () => {
 
   const handleGuest = () => {
     // Clear any previous session
-    setUser(null);
-    // Proceed to onboarding as a fresh "guest"
-    const localUser = localStorage.getItem('ni_user');
-    if (localUser) {
-        navigate('/dashboard');
-    } else {
-        navigate('/onboarding');
-    }
+    setUser(null).then(() => {
+        // Proceed to onboarding as a fresh "guest"
+        const localUser = localStorage.getItem('ni_user');
+        if (localUser) {
+            navigate('/dashboard');
+        } else {
+            navigate('/onboarding');
+        }
+    });
   };
 
   return (
@@ -117,13 +123,14 @@ export const Login: React.FC = () => {
           className="w-full p-4 bg-white border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm"
         />
         
-        <Button isLoading={isLoading} type="submit" className="mt-2">
+        <Button isLoading={isLoading} type="submit" className="mt-2" disabled={!auth}>
           {isSignUp ? "Create Account" : "Sign In"}
         </Button>
+        {!auth && <p className="text-xs text-center text-amber-600">Online services unavailable. Please use Guest Mode.</p>}
       </form>
 
       <div className="mt-4 grid grid-cols-1 gap-3">
-         <Button variant="secondary" onClick={() => { setIsSignUp(!isSignUp); setError(null); }}>
+         <Button variant="secondary" onClick={() => { setIsSignUp(!isSignUp); setError(null); }} disabled={!auth}>
             {isSignUp ? "Switch to Sign In" : "Create Account"}
          </Button>
       </div>

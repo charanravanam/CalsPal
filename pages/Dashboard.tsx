@@ -32,13 +32,16 @@ export const Dashboard: React.FC = () => {
     <div className="space-y-8 animate-fade-in pt-4">
       
       {/* Header */}
-      <div className="flex justify-between items-end">
+      <div className="flex justify-between items-start">
         <div>
            <p className="text-zinc-500 text-sm mb-1 font-medium">{new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
            <h1 className="text-2xl font-bold tracking-tight">Hello, {user?.name}</h1>
         </div>
-        <div className="text-right">
-           <span className="text-xs font-bold bg-zinc-100 text-zinc-600 px-2 py-1 rounded uppercase tracking-wider">{user?.goal}</span>
+        <div className="text-right flex flex-col gap-1 items-end">
+           {user?.goal.slice(0, 2).map((g) => (
+               <span key={g} className="text-[10px] font-bold bg-zinc-100 text-zinc-600 px-2 py-1 rounded uppercase tracking-wider">{g}</span>
+           ))}
+           {(user?.goal.length || 0) > 2 && <span className="text-[10px] text-zinc-400">+{user!.goal.length - 2} more</span>}
         </div>
       </div>
 
