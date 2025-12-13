@@ -5,20 +5,24 @@ import "firebase/compat/firestore";
 // Declare global constant injected by Vite
 declare const __FIREBASE_KEY__: string;
 
-// De-obfuscate: Base64 decode -> Reverse string
-let apiKey = "";
-try {
-    // Safely check if key is defined and not empty before attempting decode
-    const keyToDecode = (typeof __FIREBASE_KEY__ !== 'undefined') ? __FIREBASE_KEY__ : "";
-    
-    if (keyToDecode && keyToDecode.length > 0) {
-        const reversed = atob(keyToDecode);
-        apiKey = reversed.split('').reverse().join('');
+let app;
+let auth: firebase.auth.Auth | undefined;
+let db: firebase.firestore.Firestore | undefined;
+
+// Helper to decode key safely
+const getApiKey = () => {
+    try {
+        const keyToDecode = (typeof __FIREBASE_KEY__ !== 'undefined') ? __FIREBASE_KEY__ : "";
+        if (keyToDecode && keyToDecode.length > 0) {
+            return atob(keyToDecode).split('').reverse().join('');
+        }
+    } catch(e) {
+        console.warn("Error decoding Firebase key");
     }
-} catch(e) {
-    // Suppress error, just warn. This happens if key is missing/invalid which is handled below.
-    console.warn("Firebase Key check: No valid key found (Offline Mode).");
+    return "";
 }
+
+const apiKey = getApiKey();
 
 const firebaseConfig = {
     apiKey: apiKey,
@@ -30,12 +34,8 @@ const firebaseConfig = {
     measurementId: "G-HXM8JW7Q1Z"
 };
 
-let app;
-let auth: firebase.auth.Auth | undefined;
-let db: firebase.firestore.Firestore | undefined;
-
-// Only initialize if we have a valid-looking key
-if (apiKey && !apiKey.includes("PLACEHOLDER") && !apiKey.includes("YOUR_FIREBASE") && apiKey !== "") {
+// Initialize only if we have a key
+if (apiKey) {
     try {
         if (!firebase.apps.length) {
             app = firebase.initializeApp(firebaseConfig);
@@ -44,12 +44,12 @@ if (apiKey && !apiKey.includes("PLACEHOLDER") && !apiKey.includes("YOUR_FIREBASE
         }
         auth = firebase.auth();
         db = firebase.firestore();
-        console.log("Firebase initialized successfully");
+        console.log("Firebase initialized");
     } catch (e) {
-        console.warn("Firebase initialization failed (App will run in offline mode):", e);
+        console.warn("Firebase initialization failed:", e);
     }
 } else {
-    console.warn("Firebase API Key missing. App running in offline mode.");
+    console.warn("No Firebase API Key found. Offline mode.");
 }
 
 export { auth, db };
