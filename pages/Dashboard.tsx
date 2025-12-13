@@ -18,13 +18,15 @@ export const Dashboard: React.FC = () => {
   if (consumed > target) {
     progressColor = 'bg-red-500'; // Over limit is always red
   } else {
-    // Handle themes and premium status
+    // Handle themes
     if (user?.theme === 'dark') {
-      progressColor = 'bg-white';
-    } else if (user?.theme === 'gold' || user?.isPremium) {
-      // Gold theme OR Premium user in light mode gets the beige/gold bar
-      progressColor = 'bg-amber-200';
+      progressColor = 'bg-white'; // White on Dark Background
+    } else if (user?.theme === 'gold') {
+      progressColor = 'bg-amber-200'; // Beige on Dark Blue Background (Gold Theme)
     } else {
+      // Light Mode (Default)
+      // Must be black to contrast with white card. 
+      // Do NOT use beige here even if premium, as it blends with white background.
       progressColor = 'bg-zinc-900';
     }
   }
