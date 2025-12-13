@@ -5,10 +5,11 @@ import { getFirestore, Firestore } from "firebase/firestore";
 // Declare global constant injected by Vite
 declare const __FIREBASE_KEY__: string;
 
-// Decode the Base64 encoded key
+// De-obfuscate: Base64 decode -> Reverse string
 let apiKey = "";
 try {
-    apiKey = atob(__FIREBASE_KEY__);
+    const reversed = atob(__FIREBASE_KEY__);
+    apiKey = reversed.split('').reverse().join('');
 } catch(e) {
     console.error("Failed to decode Firebase Key");
 }

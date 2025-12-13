@@ -10,8 +10,9 @@ const getGenAI = () => {
   if (!genAI) {
     let apiKey = "";
     try {
-        // Decode the Base64 key at runtime
-        apiKey = atob(__GEMINI_KEY__);
+        // De-obfuscate: Base64 decode -> Reverse string
+        const reversed = atob(__GEMINI_KEY__);
+        apiKey = reversed.split('').reverse().join('');
     } catch (e) {
         console.error("Failed to decode Gemini Key");
     }

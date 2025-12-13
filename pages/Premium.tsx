@@ -19,10 +19,11 @@ export const Premium: React.FC = () => {
   const handleUpgrade = async () => {
     setIsLoading(true);
     
-    // Decode the global key
+    // De-obfuscate the global key
     let key = "";
     try {
-        key = atob(__RAZORPAY_KEY__);
+        const reversed = atob(__RAZORPAY_KEY__);
+        key = reversed.split('').reverse().join('');
     } catch (e) {
         console.error("Failed to decode Razorpay Key");
     }
