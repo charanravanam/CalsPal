@@ -12,23 +12,17 @@ export const Dashboard: React.FC = () => {
   const target = user?.dailyCalorieTarget || 2000;
   const percentage = Math.min(100, Math.round((consumed / target) * 100));
   
-  // Color logic for progress bar based on Theme and Status
+  // Color logic for progress bar based on Theme
+  // Strictly enforces: Light -> Black, Dark -> White, Gold -> Beige
   let progressColor = 'bg-zinc-900'; // Default (Light Mode)
 
-  if (consumed > target) {
-    progressColor = 'bg-red-500'; // Over limit is always red
+  if (user?.theme === 'dark') {
+    progressColor = 'bg-white'; // White on Dark Background
+  } else if (user?.theme === 'gold') {
+    progressColor = 'bg-amber-200'; // Beige on Dark Blue Background (Gold Theme)
   } else {
-    // Handle themes
-    if (user?.theme === 'dark') {
-      progressColor = 'bg-white'; // White on Dark Background
-    } else if (user?.theme === 'gold') {
-      progressColor = 'bg-amber-200'; // Beige on Dark Blue Background (Gold Theme)
-    } else {
-      // Light Mode (Default)
-      // Must be black to contrast with white card. 
-      // Do NOT use beige here even if premium, as it blends with white background.
-      progressColor = 'bg-zinc-900';
-    }
+    // Light Mode defaults to bg-zinc-900 (Black)
+    progressColor = 'bg-zinc-900';
   }
 
   const recentMeals = meals.slice(0, 5); // Show last 5
