@@ -26,6 +26,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    base: './', // Ensures assets are linked relatively in the build output
     define: {
       // Inject obfuscated keys as global constants.
       '__GEMINI_KEY__': JSON.stringify(obfuscate(rawApiKey)),
@@ -37,6 +38,10 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: 'dist',
       emptyOutDir: true,
+      sourcemap: false
+    },
+    server: {
+      host: true
     }
   };
 });
