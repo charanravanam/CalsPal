@@ -8,10 +8,16 @@ declare const __FIREBASE_KEY__: string;
 // De-obfuscate: Base64 decode -> Reverse string
 let apiKey = "";
 try {
-    const reversed = atob(__FIREBASE_KEY__);
-    apiKey = reversed.split('').reverse().join('');
+    // Safely check if key is defined and not empty before attempting decode
+    const keyToDecode = (typeof __FIREBASE_KEY__ !== 'undefined') ? __FIREBASE_KEY__ : "";
+    
+    if (keyToDecode) {
+        const reversed = atob(keyToDecode);
+        apiKey = reversed.split('').reverse().join('');
+    }
 } catch(e) {
-    console.error("Failed to decode Firebase Key");
+    // Suppress error, just warn. This happens if key is missing/invalid which is handled below.
+    console.warn("Firebase Key check: No valid key found (Offline Mode).");
 }
 
 const firebaseConfig = {
