@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => {
   // Simple helper to get env vars
   const getVar = (key: string) => process.env[key] || env[key] || "";
   
-  // Keep key obfuscation logic simple and dependency-free
+  // Key obfuscation logic matching the frontend decoding
   const obfuscate = (str: string) => {
     if (!str) return "";
     try {
@@ -22,9 +22,9 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
-    base: './', // Ensures assets are linked relatively (fixes blank page on some hosts)
+    base: './', // Ensures assets are linked relatively
     define: {
-      // Inject obfuscated keys
+      // Inject obfuscated keys expected by services/*.ts
       '__GEMINI_KEY__': JSON.stringify(obfuscate(getVar('API_KEY'))),
       '__FIREBASE_KEY__': JSON.stringify(obfuscate(getVar('FIREBASE_API_KEY'))),
       '__RAZORPAY_KEY__': JSON.stringify(obfuscate(getVar('RAZORPAY_KEY_ID'))),
