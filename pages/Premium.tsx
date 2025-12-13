@@ -11,6 +11,7 @@ declare global {
 }
 declare const __RAZORPAY_KEY__: string;
 declare const __RAZORPAY_PLAN_ID__: string;
+declare const __RAZORPAY_SUBSCRIPTION_ID__: string;
 
 export const Premium: React.FC = () => {
   const { user, setUser } = useApp();
@@ -29,20 +30,29 @@ export const Premium: React.FC = () => {
   };
 
   const createSubscriptionId = async (planId: string) => {
-    // IMPORTANT: In a real production app, this function should call YOUR backend.
-    // Your backend would then call Razorpay API (https://api.razorpay.com/v1/subscriptions)
-    // using your Key ID and Secret Key to generate a 'sub_xxx' ID.
-    // We cannot do this here safely because it requires the Secret Key.
-    
-    // Example Backend Call:
-    // const res = await fetch('https://your-api.com/create-subscription', { 
-    //    method: 'POST', 
-    //    body: JSON.stringify({ plan_id: planId }) 
-    // });
-    // const data = await res.json();
-    // return data.subscription_id;
+    // 1. Check for hardcoded/env testing ID (Useful for testing without backend)
+    // To test Auto-Pay: Create a subscription in Razorpay Dashboard, get the 'sub_xxx' ID, 
+    // and add RAZORPAY_SUBSCRIPTION_ID to your .env file.
+    const envSubId = getDeobfuscatedKey(__RAZORPAY_SUBSCRIPTION_ID__);
+    if (envSubId) return envSubId;
 
-    console.warn("Backend not connected: Cannot generate real Subscription ID for Auto-Pay.");
+    // 2. Try to fetch from a standard backend endpoint
+    // In production, your backend should create the subscription via Razorpay API.
+    try {
+      const response = await fetch('/api/create-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan_id: planId })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        return data.subscription_id;
+      }
+    } catch (e) {
+      // Backend not available
+    }
+
     return null; 
   };
 
@@ -58,16 +68,6 @@ export const Premium: React.FC = () => {
         return;
     }
 
-    // 1. Try to get a Subscription ID (for Recurring/Auto-Pay)
-    let subscriptionId = null;
-    if (planId) {
-        subscriptionId = await createSubscriptionId(planId);
-    }
-
-    // 2. Configure Options
-    // If we have a subscriptionId, we use the Subscription Flow (Recurring).
-    // If not, we fall back to One-Time Payment Flow so the app doesn't break.
-    
     const options: any = {
         key: key,
         name: "Dr Foodie Premium",
@@ -75,7 +75,6 @@ export const Premium: React.FC = () => {
         image: "https://www.foodieqr.com/assets/img/og_img.png",
         handler: async function (response: any) {
             // Success Callback
-            // Check for subscription_id or payment_id
             if (response.razorpay_payment_id || response.razorpay_subscription_id) {
                 if (user) {
                     const updatedUser = { ...user, isPremium: true };
@@ -87,7 +86,7 @@ export const Premium: React.FC = () => {
         },
         prefill: {
             name: user?.name || "",
-            email: "user@example.com", // Recommended to prefill for better success rate
+            email: "user@example.com", 
             contact: ""
         },
         notes: {
@@ -103,18 +102,30 @@ export const Premium: React.FC = () => {
         }
     };
 
-    if (subscriptionId) {
+    // LOGIC: If a Plan ID is present, we STRICTLY enforce the Subscription flow.
+    // We do NOT fallback to one-time payment, as that causes confusion.
+    if (planId) {
         // RECURRING FLOW (UPI Auto-Pay)
-        options.subscription_id = subscriptionId;
-        // Do NOT pass 'amount' for subscriptions, it's determined by the Plan
+        const subscriptionId = await createSubscriptionId(planId);
+        
+        if (subscriptionId) {
+            options.subscription_id = subscriptionId;
+            // 'amount' must be omitted for subscriptions
+        } else {
+             alert(
+                "Configuration Error: Recurring Payment requires a 'subscription_id'.\n\n" +
+                "Since no backend is connected to generate one dynamically, please:\n" +
+                "1. Create a Subscription manually in Razorpay Dashboard for your Plan.\n" +
+                "2. Add the 'sub_...' ID as 'RAZORPAY_SUBSCRIPTION_ID' in your environment variables."
+             );
+             setIsLoading(false);
+             return;
+        }
     } else {
-        // ONE-TIME FLOW (Fallback)
-        // If we couldn't generate a subscription ID (no backend), we process a one-time charge.
+        // ONE-TIME FLOW (Only used if no Plan ID is configured)
         options.amount = 4900; // 49.00 INR
         options.currency = "INR";
-        if (planId) {
-            console.log("Note: Falling back to one-time payment because subscription_id could not be generated client-side.");
-        }
+        console.log("Using One-Time Payment flow (RAZORPAY_PLAN_ID not found).");
     }
 
     try {

@@ -90,6 +90,8 @@ export const AddMeal: React.FC = () => {
     }
   };
 
+  const remainingScans = 3 - (user?.scanCount || 0);
+
   return (
     <div className="h-full flex flex-col pt-4">
       <div className="flex items-center justify-between mb-6">
@@ -99,7 +101,7 @@ export const AddMeal: React.FC = () => {
       
       {!user?.isPremium && (
          <div className="mb-4 px-4 py-2 bg-amber-50 text-amber-800 text-xs rounded-lg border border-amber-100 flex justify-between items-center">
-             <span>Free Scans: <strong>{3 - (user?.scanCount || 0)} left</strong></span>
+             <span>Free Scans: <strong>{Math.max(0, remainingScans)} left</strong></span>
              <button onClick={() => navigate('/premium')} className="underline font-bold">Upgrade</button>
          </div>
       )}
