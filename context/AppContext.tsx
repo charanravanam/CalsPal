@@ -1,8 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { UserProfile, MealLog } from '../types';
 import { auth, db } from '../services/firebase';
-import { doc, getDoc, setDoc, collection, query, orderBy, getDocs } from "firebase/firestore";
-import { onAuthStateChanged } from "firebase/auth";
 
 interface AppContextType {
   user: UserProfile | null;
@@ -38,7 +36,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     
     // Setup Auth Listener if auth is available
     if (auth) {
-        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+        const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
             if (firebaseUser) {
                 // User is signed in.
                 // If we don't have local data, try to sync
@@ -69,22 +67,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     
     try {
       // 1. Get User Profile
-      const userDoc = await getDoc(doc(db, "users", uid));
-      if (userDoc.exists()) {
+      const userDoc = await db.collection("users").doc(uid).get();
+      if (userDoc.exists) {
         const data = userDoc.data();
         
         const userData: UserProfile = {
             ...data as UserProfile,
-            onboardingComplete: data.onboardingComplete ?? true,
-            scanCount: data.scanCount ?? 0
+            onboardingComplete: data?.onboardingComplete ?? true,
+            scanCount: data?.scanCount ?? 0
         };
         
         setUserState(userData);
         localStorage.setItem('ni_user', JSON.stringify(userData));
         
         // 2. Get Meals
-        const q = query(collection(db, "users", uid, "meals"), orderBy("timestamp", "desc"));
-        const querySnapshot = await getDocs(q);
+        const querySnapshot = await db.collection("users").doc(uid).collection("meals")
+            .orderBy("timestamp", "desc")
+            .get();
+        
         const fetchedMeals: MealLog[] = [];
         querySnapshot.forEach((doc) => {
             fetchedMeals.push(doc.data() as MealLog);
@@ -117,7 +117,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         try {
           // Remove undefined values for Firestore
           const firestoreUser = JSON.parse(JSON.stringify(newUser));
-          await setDoc(doc(db, "users", auth.currentUser.uid), firestoreUser, { merge: true });
+          await db.collection("users").doc(auth.currentUser.uid).set(firestoreUser, { merge: true });
         } catch (e) { console.error("Error saving user to DB:", e); }
       }
 
@@ -142,7 +142,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (auth?.currentUser && db) {
       try {
         const firestoreMeal = JSON.parse(JSON.stringify(meal));
-        await setDoc(doc(db, "users", auth.currentUser.uid, "meals", meal.id), firestoreMeal);
+        await db.collection("users").doc(auth.currentUser.uid).collection("meals").doc(meal.id).set(firestoreMeal);
       } catch (e) { console.error("Error saving meal to DB:", e); }
     }
 

@@ -12,19 +12,19 @@ const getGenAI = () => {
     try {
         const keyToDecode = (typeof __GEMINI_KEY__ !== 'undefined') ? __GEMINI_KEY__ : "";
         
-        if (keyToDecode) {
+        if (keyToDecode && keyToDecode.length > 0) {
             // De-obfuscate: Base64 decode -> Reverse string
             const reversed = atob(keyToDecode);
             apiKey = reversed.split('').reverse().join('');
         }
     } catch (e) {
-        console.error("Failed to decode Gemini Key");
+        console.error("Failed to decode Gemini Key", e);
     }
     
     // Check if key exists and is valid
     if (!apiKey || apiKey.includes("PLACEHOLDER") || apiKey === "") {
         console.warn("[GeminiService] API Key is missing.");
-        throw new Error("API_KEY is missing. Please check your environment variables in Netlify.");
+        throw new Error("API_KEY is missing. Please check your environment variables.");
     }
     
     genAI = new GoogleGenAI({ apiKey: apiKey });

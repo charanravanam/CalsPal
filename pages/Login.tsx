@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { auth } from '../services/firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 import { Button } from '../components/Button';
 
 export const Login: React.FC = () => {
@@ -51,22 +50,24 @@ export const Login: React.FC = () => {
     try {
       if (isSignUp) {
         // Sign Up Flow
-        await createUserWithEmailAndPassword(auth, email, password);
+        await auth.createUserWithEmailAndPassword(email, password);
         // After signup, go to onboarding to create profile
         navigate('/onboarding');
       } else {
         // Login Flow
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        const uid = userCredential.user.uid;
+        const userCredential = await auth.signInWithEmailAndPassword(email, password);
+        const uid = userCredential.user?.uid;
         
-        // Fetch data
-        const hasProfile = await syncWithFirebase(uid);
-        
-        if (hasProfile) {
-          navigate('/dashboard');
-        } else {
-          // User exists in Auth but no profile in Firestore (rare, or interrupted signup)
-          navigate('/onboarding');
+        if (uid) {
+            // Fetch data
+            const hasProfile = await syncWithFirebase(uid);
+            
+            if (hasProfile) {
+              navigate('/dashboard');
+            } else {
+              // User exists in Auth but no profile in Firestore (rare, or interrupted signup)
+              navigate('/onboarding');
+            }
         }
       }
     } catch (err: any) {

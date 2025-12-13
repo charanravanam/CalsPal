@@ -26,7 +26,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
-    base: './', // Ensures assets are linked relatively in the build output
+    base: './', // Ensures assets are linked relatively in the build output. Critical for blank page fix.
     define: {
       // Inject obfuscated keys as global constants.
       '__GEMINI_KEY__': JSON.stringify(obfuscate(rawApiKey)),

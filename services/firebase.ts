@@ -1,6 +1,6 @@
-import { initializeApp } from "firebase/app";
-import { getAuth, Auth } from "firebase/auth";
-import { getFirestore, Firestore } from "firebase/firestore";
+import firebase from "firebase/compat/app";
+import "firebase/compat/auth";
+import "firebase/compat/firestore";
 
 // Declare global constant injected by Vite
 declare const __FIREBASE_KEY__: string;
@@ -11,7 +11,7 @@ try {
     // Safely check if key is defined and not empty before attempting decode
     const keyToDecode = (typeof __FIREBASE_KEY__ !== 'undefined') ? __FIREBASE_KEY__ : "";
     
-    if (keyToDecode) {
+    if (keyToDecode && keyToDecode.length > 0) {
         const reversed = atob(keyToDecode);
         apiKey = reversed.split('').reverse().join('');
     }
@@ -31,15 +31,19 @@ const firebaseConfig = {
 };
 
 let app;
-let auth: Auth | undefined;
-let db: Firestore | undefined;
+let auth: firebase.auth.Auth | undefined;
+let db: firebase.firestore.Firestore | undefined;
 
 // Only initialize if we have a valid-looking key
 if (apiKey && !apiKey.includes("PLACEHOLDER") && !apiKey.includes("YOUR_FIREBASE") && apiKey !== "") {
     try {
-        app = initializeApp(firebaseConfig);
-        auth = getAuth(app);
-        db = getFirestore(app);
+        if (!firebase.apps.length) {
+            app = firebase.initializeApp(firebaseConfig);
+        } else {
+            app = firebase.app();
+        }
+        auth = firebase.auth();
+        db = firebase.firestore();
         console.log("Firebase initialized successfully");
     } catch (e) {
         console.warn("Firebase initialization failed (App will run in offline mode):", e);
