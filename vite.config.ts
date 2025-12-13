@@ -12,6 +12,7 @@ export default defineConfig(({ mode }) => {
   const rawApiKey = getVar('API_KEY');
   const rawFirebaseKey = getVar('FIREBASE_API_KEY');
   const rawRazorpayKey = getVar('RAZORPAY_KEY_ID');
+  const rawRazorpayPlanId = getVar('RAZORPAY_PLAN_ID');
 
   // Obfuscate: Reverse string -> Base64
   // This breaks the "AIza..." pattern completely, preventing scanners from detecting the key.
@@ -29,6 +30,7 @@ export default defineConfig(({ mode }) => {
       '__GEMINI_KEY__': JSON.stringify(obfuscate(rawApiKey)),
       '__FIREBASE_KEY__': JSON.stringify(obfuscate(rawFirebaseKey)),
       '__RAZORPAY_KEY__': JSON.stringify(obfuscate(rawRazorpayKey)),
+      '__RAZORPAY_PLAN_ID__': JSON.stringify(obfuscate(rawRazorpayPlanId)),
     },
     build: {
       outDir: 'dist',

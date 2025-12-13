@@ -30,6 +30,19 @@ export const AddMeal: React.FC = () => {
 
   const handleAnalyze = async () => {
     if (!user) return;
+    
+    // --- FREE PLAN LIMIT CHECK ---
+    const FREE_LIMIT = 3;
+    const currentScans = user.scanCount || 0;
+    
+    if (!user.isPremium && currentScans >= FREE_LIMIT) {
+        if (window.confirm(`You've reached your limit of ${FREE_LIMIT} free scans.\n\nUnlock unlimited scans and premium themes for just ₹49/month!`)) {
+            navigate('/premium');
+        }
+        return;
+    }
+    // -----------------------------
+
     if (mode === 'camera' && !imagePreview) return;
     if (mode === 'text' && !textInput) return;
 
@@ -62,7 +75,7 @@ export const AddMeal: React.FC = () => {
         analysis
       };
 
-      addMeal(newMeal);
+      await addMeal(newMeal);
       navigate(`/report/${newMeal.id}`);
       
     } catch (err: any) {
@@ -83,6 +96,13 @@ export const AddMeal: React.FC = () => {
          <h1 className="text-2xl font-bold">Log Meal</h1>
          <button onClick={() => navigate('/dashboard')} className="text-sm text-zinc-500">Cancel</button>
       </div>
+      
+      {!user?.isPremium && (
+         <div className="mb-4 px-4 py-2 bg-amber-50 text-amber-800 text-xs rounded-lg border border-amber-100 flex justify-between items-center">
+             <span>Free Scans: <strong>{3 - (user?.scanCount || 0)} left</strong></span>
+             <button onClick={() => navigate('/premium')} className="underline font-bold">Upgrade</button>
+         </div>
+      )}
 
       {/* Mode Switcher */}
       <div className="bg-zinc-100 p-1 rounded-xl flex mb-6">

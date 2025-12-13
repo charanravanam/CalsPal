@@ -27,7 +27,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const savedMeals = localStorage.getItem('ni_meals');
 
     if (savedUser) {
-      setUserState(JSON.parse(savedUser));
+      const parsedUser = JSON.parse(savedUser);
+      // Ensure scanCount exists
+      if (parsedUser.scanCount === undefined) parsedUser.scanCount = 0;
+      setUserState(parsedUser);
     }
     if (savedMeals) {
       setMeals(JSON.parse(savedMeals));
@@ -72,7 +75,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         
         const userData: UserProfile = {
             ...data as UserProfile,
-            onboardingComplete: data.onboardingComplete ?? true
+            onboardingComplete: data.onboardingComplete ?? true,
+            scanCount: data.scanCount ?? 0
         };
         
         setUserState(userData);
@@ -134,12 +138,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setMeals(updatedMeals);
     localStorage.setItem('ni_meals', JSON.stringify(updatedMeals));
 
-    // Sync to Firebase if logged in and db is available
+    // Save meal to DB
     if (auth?.currentUser && db) {
       try {
         const firestoreMeal = JSON.parse(JSON.stringify(meal));
         await setDoc(doc(db, "users", auth.currentUser.uid, "meals", meal.id), firestoreMeal);
       } catch (e) { console.error("Error saving meal to DB:", e); }
+    }
+
+    // Increment Scan Count
+    if (user) {
+        const newCount = (user.scanCount || 0) + 1;
+        const updatedUser = { ...user, scanCount: newCount };
+        await setUser(updatedUser);
     }
   };
 

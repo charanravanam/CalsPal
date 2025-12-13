@@ -48,6 +48,7 @@ export interface UserProfile {
   onboardingComplete: boolean;
   isPremium?: boolean;
   theme?: Theme;
+  scanCount?: number; // Track number of free scans used
 }
 
 export interface NutritionAnalysis {
