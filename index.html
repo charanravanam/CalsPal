@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Dr Foodie</title>
     
-    <!-- Tailwind CSS -->
+    <!-- Tailwind CSS (CDN for immediate styling reliability) -->
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- Fonts -->
@@ -36,14 +36,14 @@
 <script type="importmap">
 {
   "imports": {
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "react/": "https://esm.sh/react@^19.2.3/",
     "react": "https://esm.sh/react@^19.2.3",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "react/": "https://esm.sh/react@^19.2.3/",
     "@google/genai": "https://esm.sh/@google/genai@^1.33.0",
     "react-router-dom": "https://esm.sh/react-router-dom@^7.10.1",
     "firebase/": "https://esm.sh/firebase@^12.6.0/",
     "vite": "https://esm.sh/vite@^7.2.7",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
     "@capacitor/cli": "https://esm.sh/@capacitor/cli@^8.0.0"
   }
 }
@@ -54,7 +54,7 @@
     <!-- React Root Entry Point -->
     <div id="root" class="max-w-md mx-auto min-h-screen relative flex flex-col"></div>
 
-    <!-- Toast / Notification Container (Handled by React mostly, keeping if needed) -->
+    <!-- Toast / Notification Container -->
     <div id="toast-container" class="fixed top-4 left-1/2 -translate-x-1/2 w-full max-w-xs z-[60] pointer-events-none"></div>
 
     <!-- App Entry Script -->

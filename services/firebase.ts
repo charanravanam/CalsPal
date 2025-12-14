@@ -8,6 +8,7 @@ declare const __FIREBASE_KEY__: string;
 let app;
 let auth: firebase.auth.Auth | undefined;
 let db: firebase.firestore.Firestore | undefined;
+let googleProvider: firebase.auth.GoogleAuthProvider | undefined;
 
 // Helper to decode key safely
 const getApiKey = () => {
@@ -44,6 +45,7 @@ if (apiKey) {
         }
         auth = firebase.auth();
         db = firebase.firestore();
+        googleProvider = new firebase.auth.GoogleAuthProvider();
         console.log("Firebase initialized");
     } catch (e) {
         console.warn("Firebase initialization failed:", e);
@@ -52,4 +54,4 @@ if (apiKey) {
     console.warn("No Firebase API Key found. Offline mode.");
 }
 
-export { auth, db };
+export { auth, db, googleProvider };

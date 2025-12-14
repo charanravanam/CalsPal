@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { auth } from '../services/firebase';
+import { auth, googleProvider } from '../services/firebase';
 import { Button } from '../components/Button';
 
 export const Login: React.FC = () => {
@@ -28,7 +28,17 @@ export const Login: React.FC = () => {
         case 'auth/email-already-in-use': return 'Email is already registered.';
         case 'auth/weak-password': return 'Password should be at least 6 characters.';
         case 'auth/user-not-found': return 'No account found with this email.';
+        case 'auth/popup-closed-by-user': return 'Sign in was cancelled.';
         default: return 'Authentication failed. ' + code;
+    }
+  };
+
+  const handleAuthSuccess = async (uid: string) => {
+    const hasProfile = await syncWithFirebase(uid);
+    if (hasProfile) {
+        navigate('/dashboard');
+    } else {
+        navigate('/onboarding');
     }
   };
 
@@ -40,7 +50,7 @@ export const Login: React.FC = () => {
     }
 
     if (!auth) {
-        setError("Authentication service is unavailable. Please use Guest Mode.");
+        setError("Firebase API Key missing. Please check your environment variables or use Guest Mode.");
         return;
     }
     
@@ -50,24 +60,13 @@ export const Login: React.FC = () => {
     try {
       if (isSignUp) {
         // Sign Up Flow
-        await auth.createUserWithEmailAndPassword(email, password);
-        // After signup, go to onboarding to create profile
-        navigate('/onboarding');
+        const cred = await auth.createUserWithEmailAndPassword(email, password);
+        if (cred.user) navigate('/onboarding');
       } else {
         // Login Flow
         const userCredential = await auth.signInWithEmailAndPassword(email, password);
-        const uid = userCredential.user?.uid;
-        
-        if (uid) {
-            // Fetch data
-            const hasProfile = await syncWithFirebase(uid);
-            
-            if (hasProfile) {
-              navigate('/dashboard');
-            } else {
-              // User exists in Auth but no profile in Firestore (rare, or interrupted signup)
-              navigate('/onboarding');
-            }
+        if (userCredential.user) {
+            await handleAuthSuccess(userCredential.user.uid);
         }
       }
     } catch (err: any) {
@@ -78,11 +77,29 @@ export const Login: React.FC = () => {
     }
   };
 
+  const handleGoogleLogin = async () => {
+    if (!auth || !googleProvider) {
+        setError("Google Sign In not configured (API Key missing).");
+        return;
+    }
+    setError(null);
+    setIsLoading(true);
+    try {
+        const result = await auth.signInWithPopup(googleProvider);
+        if (result.user) {
+            await handleAuthSuccess(result.user.uid);
+        }
+    } catch (err: any) {
+        console.error(err);
+        setError(getAuthErrorMessage(err.code));
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
   const handleGuest = () => {
     setIsLoading(true);
-    // If local data exists, rely on it (don't wipe it)
     const localUser = localStorage.getItem('ni_user');
-    
     setTimeout(() => {
         if (localUser) {
             navigate('/dashboard');
@@ -92,61 +109,25 @@ export const Login: React.FC = () => {
     }, 500);
   };
 
-  // RENDER: OFFLINE / GUEST MODE (Fallback when API Keys are missing)
-  if (!auth) {
-     return (
-        <div className="min-h-screen flex flex-col justify-center p-6 bg-zinc-50">
-            <div className="text-center space-y-6 animate-fade-in mb-8">
-                <div className="w-24 h-24 bg-white rounded-2xl flex items-center justify-center mx-auto shadow-xl shadow-zinc-200 overflow-hidden border border-zinc-100 p-2">
-                    <img 
-                        src="https://www.foodieqr.com/assets/img/og_img.png" 
-                        alt="Dr Foodie Logo" 
-                        className="w-full h-full object-contain"
-                    />
-                </div>
-                <div className="space-y-2">
-                    <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">Dr Foodie</h1>
-                    <p className="text-zinc-500">Personal nutrition intelligence.</p>
-                </div>
-            </div>
-
-            <div className="bg-white p-6 rounded-2xl border border-zinc-100 shadow-sm space-y-6 text-center">
-                <div className="space-y-2">
-                    <h3 className="font-bold text-zinc-900">Offline Mode</h3>
-                    <p className="text-sm text-zinc-500 text-balance">
-                        Cloud sync is currently disabled (Database not configured). 
-                        You can still use the app with local storage.
-                    </p>
-                </div>
-                
-                <Button onClick={handleGuest} isLoading={isLoading}>
-                    Start App (Offline)
-                </Button>
-            </div>
-            
-             <p className="mt-8 text-xs text-center text-zinc-400">
-                Data will be saved to this device only.
-            </p>
-        </div>
-     );
-  }
-
-  // RENDER: ONLINE MODE (Firebase Active)
   return (
     <div className="min-h-screen flex flex-col justify-center p-6 bg-zinc-50">
       <div className="text-center space-y-6 animate-fade-in mb-8">
           <div className="w-24 h-24 bg-white rounded-2xl flex items-center justify-center mx-auto shadow-xl shadow-zinc-200 overflow-hidden border border-zinc-100 p-2">
-              <img 
-                src="https://www.foodieqr.com/assets/img/og_img.png" 
-                alt="Dr Foodie Logo" 
-                className="w-full h-full object-contain"
-              />
+               <div className="text-5xl">🥗</div>
           </div>
           <div className="space-y-2">
               <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">Dr Foodie</h1>
-              <p className="text-zinc-500">Sign in to track your meals and health goals.</p>
+              <p className="text-zinc-500">
+                  {isSignUp ? "Create an account to track your health." : "Sign in to your personal nutrition dashboard."}
+              </p>
           </div>
       </div>
+
+      {!auth && (
+          <div className="mb-6 p-3 bg-amber-50 text-amber-700 text-xs rounded-xl border border-amber-100 text-center">
+              ⚠️ Cloud features disabled (Missing API Key). <br/> You can still use Guest Mode.
+          </div>
+      )}
 
       {error && (
         <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-xl text-sm border border-red-100 flex items-center gap-2">
@@ -154,6 +135,22 @@ export const Login: React.FC = () => {
            {error}
         </div>
       )}
+
+      {/* Auth Toggle Tabs */}
+      <div className="flex bg-zinc-100 p-1 rounded-xl mb-6">
+        <button 
+          onClick={() => { setIsSignUp(false); setError(null); }}
+          className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${!isSignUp ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'}`}
+        >
+          Login
+        </button>
+        <button 
+          onClick={() => { setIsSignUp(true); setError(null); }}
+          className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${isSignUp ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'}`}
+        >
+          Create Account
+        </button>
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <input 
@@ -176,13 +173,20 @@ export const Login: React.FC = () => {
         </Button>
       </form>
 
-      <div className="mt-4 grid grid-cols-1 gap-3">
-         <Button variant="secondary" onClick={() => { setIsSignUp(!isSignUp); setError(null); }}>
-            {isSignUp ? "Switch to Sign In" : "Create Account"}
-         </Button>
+      <div className="mt-4 space-y-3">
+         {/* Google Sign In */}
+         <button 
+            type="button"
+            onClick={handleGoogleLogin}
+            disabled={isLoading}
+            className="w-full py-3.5 px-6 rounded-xl font-medium bg-white text-zinc-700 border border-zinc-200 shadow-sm hover:bg-zinc-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+         >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="20px" height="20px"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"/><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"/><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"/></svg>
+            Sign in with Google
+         </button>
       </div>
 
-      <button onClick={handleGuest} className="mt-6 text-xs text-zinc-400 underline hover:text-zinc-600">
+      <button onClick={handleGuest} className="mt-8 text-xs text-zinc-400 underline hover:text-zinc-600">
          Continue as Guest (Device Only)
       </button>
     </div>
